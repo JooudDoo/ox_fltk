@@ -1,0 +1,11 @@
+flags: {}
+resolver: lts-15.0
+extra-deps:
+- fltkhs-0.8.0.3
+
+nix:
+  packages:
+    - autoconf
+    - pkgconfig
+    - xorg.libX11
+    - xorg.libXft
