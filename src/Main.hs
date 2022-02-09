@@ -13,6 +13,7 @@ windowHeight = 500
 buttonSize :: Int
 buttonSize = 50
 
+
 swtichButton :: Ref Button -> IO ()
 swtichButton b' = do
   state <- getLabel b'
@@ -22,42 +23,37 @@ swtichButton b' = do
 
 checkButtons :: [Ref Button] -> Int -> IO ()
 checkButtons btns size = do
-  pole <- newIORef ([] :: [Int])
-
+  pole <- newIORef ([] :: [[Int]])
+  onePacket <- newIORef ([] :: [Int])
 
   forM_ [0..(length btns-1)] $ \i -> do
     state <- getLabel (btns !! i)
+    when ((i `mod` size == 0) && i /= 0) $ do
+      cache <- readIORef onePacket
+      modifyIORef pole (++[cache])
+      writeIORef onePacket []
     case state of
       "X" -> do
-        modifyIORef pole (++ [1])
+        modifyIORef onePacket (++ [1])
       "O" -> do
-        modifyIORef pole (++ [-1])
+        modifyIORef onePacket (++ [-1])
       _ -> do
-        modifyIORef pole (++ [0])
+        modifyIORef onePacket (++ [0])
+    return ()
+  cache <- readIORef onePacket
+  modifyIORef pole (++[cache])
+
 --TEST FOR ONLY 3x3 (PRE-PRE-ALPHA-BETA-DEMO)
-  poleNe <- readIORef pole
-  let poleNew = refactList poleNe
+  poleNew <- readIORef pole
 
   print(poleNew)
   xIsWin <- newIORef False
   yIsWin <- newIORef False
 
-  checkRes <- checkWinColsRows poleNew (size) 1
-  modifyIORef xIsWin  (|| checkRes)
-  checkRes <- checkWinColsRows poleNew (size) (-1)
-  modifyIORef yIsWin  (|| checkRes)
-
-  xWin <- readIORef xIsWin
-  yWin <- readIORef yIsWin
-
-  when (xWin) $ print ("X IS WIN COLS")
-  when (yWin) $ print ("Y IS WIN COLS")
-
-  checkRes <- checkWinDiag poleNew (size) 1
-  modifyIORef xIsWin  (|| checkRes)
-
-  checkRes <- checkWinDiag poleNew (size) (-1)
-  modifyIORef yIsWin  (|| checkRes)
+  checkRes <- checkWin poleNew size 1
+  writeIORef xIsWin checkRes
+  checkRes <- checkWin poleNew size (-1)
+  writeIORef yIsWin checkRes
 
   xWin <- readIORef xIsWin
   yWin <- readIORef yIsWin
@@ -69,33 +65,32 @@ checkButtons btns size = do
   return ()
 
 refactList :: [Int] -> [[Int]]
-refactList lst = [take 3 lst] ++ [take 3 $ drop 3 lst] ++ [drop 6 lst]
+refactList lst = [take 4 lst] ++ [take 4 $ drop 4 lst] ++ [take 4 $ drop 8 lst] ++ [drop 12 lst]
 
-checkWinDiag :: [[Int]] -> Int -> Int -> IO Bool
-checkWinDiag pole size sym = do
+checkWin :: [[Int]] -> Int -> Int -> IO Bool
+checkWin pole size sym = do
   toRight <- newIORef True
   toLeft <- newIORef True
-  forM_ [0..size-1] $ \i -> do
-    modifyIORef toRight (&& (pole !! i !! i)==sym)
-    modifyIORef toLeft (&& (pole !! i !! (3-i-1))==sym)
-  left <- readIORef toLeft
-  right <- readIORef toRight
-  return (left || right)
-  
-
-checkWinColsRows :: [[Int]] -> Int -> Int -> IO Bool
-checkWinColsRows pole size sym = do
   win <- newIORef False
+
   forM_ [0..size-1] $ \row -> do
     cols <- newIORef True
     rows <- newIORef True
+
+    modifyIORef toRight (&& (pole !! row !! row)==sym)
+    modifyIORef toLeft (&& (pole !! row !! (size-row-1))==sym)
+
     forM_ [0..size-1] $ \col -> do
       modifyIORef cols (&& ((pole !! row !! col) == sym))
       modifyIORef rows (&& ((pole !! col !! row) == sym))
     val1 <- readIORef cols
     val2 <- readIORef rows
     when (val1 || val2) $ writeIORef win True
-  readIORef win
+  
+  left <- readIORef toLeft
+  right <- readIORef toRight
+  winColsRows <- readIORef win
+  return (left || right || winColsRows)
 
 
 createButtons :: Int -> IO [Ref Button]
@@ -122,12 +117,12 @@ main = do
             Nothing
   begin window
 
-  buttons <- createButtons 3
+  buttons <- createButtons 4
   print buttons
   showWidget window
 
   print "created"
-  checkButtons buttons 3
+  checkButtons buttons 4
   FL.run
   print "run"
   FL.flush
