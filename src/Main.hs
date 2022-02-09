@@ -18,18 +18,20 @@ buttonSize = 50
 
 swtichButton :: Ref Button -> IO ()
 swtichButton b' = do
-  file <- openFile "temp" ReadMode
-  hSetEncoding file utf8
-  stateNew <- hGetContents file
-  setLabel b' $ pack stateNew
-  hClose file
+  state <- getLabel b'
+  when (state == "") $ do
+    file <- openFile "temp" ReadMode
+    hSetEncoding file utf8
+    stateNew <- hGetContents file
+    setLabel b' $ pack stateNew
+    hClose file
 
-  file <- openFile "temp" WriteMode
-  hSetEncoding file utf8
-  if stateNew == "X"
-    then hPutStr file "O"
-    else hPutStr file "X"
-  hClose file
+    file <- openFile "temp" WriteMode
+    hSetEncoding file utf8
+    if stateNew == "X"
+      then hPutStr file "O"
+      else hPutStr file "X"
+    hClose file
 
 winButton :: Ref Button -> IO ()
 winButton b' = do
@@ -39,6 +41,7 @@ winButton b' = do
 checkButtons :: [Ref Button] -> Int -> Ref Button  -> IO ()
 checkButtons btns size winB = do
   pole <- newIORef ([] :: [[Int]])
+  cntOfZeros <- newIORef 0
   onePacket <- newIORef ([] :: [Int])
 
   forM_ [0..(length btns-1)] $ \i -> do
@@ -52,9 +55,19 @@ checkButtons btns size winB = do
         modifyIORef onePacket (++ [1])
       "O" ->
         modifyIORef onePacket (++ [-1])
-      _ ->
+      _ -> do
         modifyIORef onePacket (++ [0])
+        modifyIORef cntOfZeros (+1) 
     return ()
+  cntOfZeros <- readIORef cntOfZeros
+  when (cntOfZeros == 0) $ do
+    setLabel winB "Draw"
+    showWidget winB
+    forM_ [0..(length btns-1)] $ \i -> do
+      setLabel (btns !! i)  ""
+    FL.repeatTimeout 0.2 (checkButtons btns size winB)
+    return ()
+
   cache <- readIORef onePacket
   modifyIORef pole (++[cache])
 
@@ -72,6 +85,7 @@ checkButtons btns size winB = do
   xWin <- readIORef xIsWin
   yWin <- readIORef yIsWin
 
+
   when (xWin || yWin) $ do
     
     if xWin 
@@ -83,7 +97,7 @@ checkButtons btns size winB = do
       setLabel (btns !! i)  ""
 
 
-  FL.repeatTimeout 1.5 (checkButtons btns size winB)
+  FL.repeatTimeout 0.2 (checkButtons btns size winB)
   return ()
 
 
@@ -142,7 +156,7 @@ main = do
 
 
 
-  let countOfButtonsInRow = 3
+  let countOfButtonsInRow = 4
 
   window <- doubleWindowNew
             (Size (Width windowWidth) (Height windowHeight))
