@@ -5,6 +5,8 @@ import Graphics.UI.FLTK.LowLevel.Fl_Types
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Control.Monad
 import Data.IORef
+import System.IO
+import Data.Text (pack)
 
 windowWidth :: Int
 windowWidth = 500
@@ -16,37 +18,49 @@ buttonSize = 50
 
 swtichButton :: Ref Button -> IO ()
 swtichButton b' = do
-  state <- getLabel b'
-  if state == "" || state == "O"
-    then setLabel b' "X"
-    else setLabel b' "O"
+  file <- openFile "temp" ReadMode
+  hSetEncoding file utf8
+  stateNew <- hGetContents file
+  setLabel b' $ pack stateNew
+  hClose file
 
-checkButtons :: [Ref Button] -> Int -> IO ()
-checkButtons btns size = do
+  file <- openFile "temp" WriteMode
+  hSetEncoding file utf8
+  if stateNew == "X"
+    then hPutStr file "O"
+    else hPutStr file "X"
+  hClose file
+
+winButton :: Ref Button -> IO ()
+winButton b' = do
+  setLabel b' "Da"
+  hide b'
+
+checkButtons :: [Ref Button] -> Int -> Ref Button  -> IO ()
+checkButtons btns size winB = do
   pole <- newIORef ([] :: [[Int]])
   onePacket <- newIORef ([] :: [Int])
 
   forM_ [0..(length btns-1)] $ \i -> do
     state <- getLabel (btns !! i)
-    when ((i `mod` size == 0) && i /= 0) $ do
+    when (i `mod` size == 0 && i /= 0) $ do
       cache <- readIORef onePacket
       modifyIORef pole (++[cache])
       writeIORef onePacket []
     case state of
-      "X" -> do
+      "X" ->
         modifyIORef onePacket (++ [1])
-      "O" -> do
+      "O" ->
         modifyIORef onePacket (++ [-1])
-      _ -> do
+      _ ->
         modifyIORef onePacket (++ [0])
     return ()
   cache <- readIORef onePacket
   modifyIORef pole (++[cache])
 
---TEST FOR ONLY 3x3 (PRE-PRE-ALPHA-BETA-DEMO)
   poleNew <- readIORef pole
 
-  print(poleNew)
+  print poleNew
   xIsWin <- newIORef False
   yIsWin <- newIORef False
 
@@ -58,14 +72,21 @@ checkButtons btns size = do
   xWin <- readIORef xIsWin
   yWin <- readIORef yIsWin
 
-  when (xWin) $ print ("X IS WIN")
-  when (yWin) $ print ("Y IS WIN")
+  when (xWin || yWin) $ do
+    
+    if xWin 
+      then setLabel winB "The crosses won"
+      else setLabel winB "The noughts won"
 
-  FL.repeatTimeout 1.5 (checkButtons btns size)
+    showWidget winB
+    forM_ [0..(length btns-1)] $ \i -> do
+      setLabel (btns !! i)  ""
+
+
+  FL.repeatTimeout 1.5 (checkButtons btns size winB)
   return ()
 
-refactList :: [Int] -> [[Int]]
-refactList lst = [take 4 lst] ++ [take 4 $ drop 4 lst] ++ [take 4 $ drop 8 lst] ++ [drop 12 lst]
+
 
 checkWin :: [[Int]] -> Int -> Int -> IO Bool
 checkWin pole size sym = do
@@ -77,16 +98,16 @@ checkWin pole size sym = do
     cols <- newIORef True
     rows <- newIORef True
 
-    modifyIORef toRight (&& (pole !! row !! row)==sym)
-    modifyIORef toLeft (&& (pole !! row !! (size-row-1))==sym)
+    modifyIORef toRight (&& pole !! row !! row==sym)
+    modifyIORef toLeft (&& pole !! row !! (size-row-1)==sym)
 
     forM_ [0..size-1] $ \col -> do
-      modifyIORef cols (&& ((pole !! row !! col) == sym))
-      modifyIORef rows (&& ((pole !! col !! row) == sym))
+      modifyIORef cols (&& (pole !! row !! col == sym))
+      modifyIORef rows (&& (pole !! col !! row == sym))
     val1 <- readIORef cols
     val2 <- readIORef rows
     when (val1 || val2) $ writeIORef win True
-  
+
   left <- readIORef toLeft
   right <- readIORef toRight
   winColsRows <- readIORef win
@@ -95,10 +116,13 @@ checkWin pole size sym = do
 
 createButtons :: Int -> IO [Ref Button]
 createButtons size = do
+
+ let padX = (windowWidth - buttonSize * size) `div` 2
+ let padY = (windowHeight - buttonSize * size) `div` 2
  result <- newIORef ([] :: [Ref Button])
  forM_ [0..size*size-1] $ \i -> do
     button <- buttonNew
-              (Rectangle (Position (X ((i `mod` size)*buttonSize)) (Y ((i `div` size)*buttonSize))) (Size (Width buttonSize) (Height buttonSize)))
+              (Rectangle (Position (X (i `mod` size*buttonSize + padX)) (Y (i `div` size*buttonSize + padY))) (Size (Width buttonSize) (Height buttonSize)))
               (Just "")
     setLabelsize button (FontSize 15)
     setCallback button swtichButton
@@ -111,18 +135,41 @@ createButtons size = do
 main :: IO ()
 main = do
 
+  file <- openFile "temp" WriteMode
+  hSetEncoding file utf8
+  hPutStr file "X"
+  hClose file
+
+
+
+  let countOfButtonsInRow = 3
+
   window <- doubleWindowNew
             (Size (Width windowWidth) (Height windowHeight))
             Nothing
             Nothing
   begin window
 
-  buttons <- createButtons 4
-  print buttons
+  textInLabel <- boxCustom  
+              (Rectangle (Position (X (windowWidth`div`4 + 20)) (Y 0)) (Size (Width 150) (Height 60)))
+              (Just "OX Game")
+              Nothing 
+              Nothing 
+              
+
+  buttons <- createButtons countOfButtonsInRow
+
+  winB <- buttonNew
+              (Rectangle (Position (X (windowWidth`div` 4)) (Y (windowHeight`div` 2))) (Size (Width $ windowWidth`div` 2) (Height 50)))
+              (Just "")
+  setLabelsize winB (FontSize 15)
+  setCallback winB winButton
+  hide winB
+
   showWidget window
 
   print "created"
-  checkButtons buttons 4
+  checkButtons buttons countOfButtonsInRow winB
   FL.run
   print "run"
   FL.flush
