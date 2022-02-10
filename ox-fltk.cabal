@@ -22,7 +22,10 @@ Flag FastCompile
 Executable ox-fltk
   Main-Is: Main.hs
   Hs-Source-Dirs: src/
+  other-modules: Interface, 
+                 AdditionLib
   Build-Depends:
+    strict >= 0.3.2,
     base == 4.*,
     fltkhs >= 0.8.0.3,
     text >= 1.2.2.0

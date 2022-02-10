@@ -33,6 +33,14 @@
   (major1) == 0 && (major2) == 8 && (minor) <= 0)
 #endif /* MIN_VERSION_fltkhs */
 
+#ifndef VERSION_strict
+#define VERSION_strict "0.3.2"
+#endif /* VERSION_strict */
+#ifndef MIN_VERSION_strict
+#define MIN_VERSION_strict(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) == 3 && (minor) <= 2)
+
 /* package text-1.2.4.0 */
 #ifndef VERSION_text
 #define VERSION_text "1.2.4.0"
@@ -143,6 +151,17 @@
   (major1) == 0 && (major2) == 68 && (minor) <= 5)
 #endif /* MIN_TOOL_VERSION_hsc2hs */
 
+/* tool hscolour-1.24 */
+#ifndef TOOL_VERSION_hscolour
+#define TOOL_VERSION_hscolour "1.24"
+#endif /* TOOL_VERSION_hscolour */
+#ifndef MIN_TOOL_VERSION_hscolour
+#define MIN_TOOL_VERSION_hscolour(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  24 || \
+  (major1) == 1 && (major2) == 24 && (minor) <= 0)
+#endif /* MIN_TOOL_VERSION_hscolour */
+
 /* tool pkg-config-0.29.1 */
 #ifndef TOOL_VERSION_pkg_config
 #define TOOL_VERSION_pkg_config "0.29.1"
@@ -177,7 +196,7 @@
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-DAaKkoyBjtg8KEUF91VbYL-ox-fltk"
+#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-5sWRYACBNTKKZZBZWxMf5K-ox-fltk"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.0.0.1"
