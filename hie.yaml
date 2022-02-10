@@ -1,0 +1,11 @@
+cradle:
+  multi:
+    - path: "./"
+      config:
+        cradle:
+          stack:
+            - path: "./src/Main.hs"
+            - path: "./src/Interface.hs"
+            - path: "./src/Logic.hs"
+            - path: "./src/AdditionLib.hs"
+            - path: "./src/InterfaceLib.hs"
