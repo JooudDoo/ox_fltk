@@ -12,7 +12,6 @@ import Data.Text (pack, Text)
 
 --Дополнительные функции для интерефейса тут
 
-
 data Player = Cross | Zero | NaP deriving (Eq,Show)
 
 pl :: Text -> Player
@@ -48,6 +47,7 @@ checkWin player btnLst row = do
       modifyIORef fieldIO (++ [pl state])
    field <- readIORef fieldIO
    playerIsWin <- checkWinPl (refactorList field row) row player
+
    when playerIsWin $ do
        print ("Winner is" ++ plT player)
        cleanAllCells btnLst

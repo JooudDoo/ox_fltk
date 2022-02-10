@@ -9,15 +9,22 @@ import Graphics.UI.FLTK.LowLevel.Fl_Types
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Control.Monad
 import Data.IORef
-
 import Data.Text (pack, Text)
 
-windowWidth :: Int
-windowWidth = 500
-windowHeight :: Int
-windowHeight = 500
-buttonSize :: Int
-buttonSize = 50
+--Файл с отрисовкой игрового интерфейса
+
+data WindowConfig = 
+    WC 
+    {
+        width :: Int,
+        height :: Int
+    }
+data CellsConfig =
+    CC
+    {
+        cellSize :: Int,
+        cntInRow :: Int
+    }
 
 gameCell :: [Ref Button] -> Int -> Ref Button -> IO ()
 gameCell btnLst inRow b' = do
@@ -25,33 +32,38 @@ gameCell btnLst inRow b' = do
   newOXButtonState b'
   checkWin (pl (pack player)) btnLst inRow
 
-createGameCells :: Int -> IO [Ref Button]
-createGameCells size = do
+createGameCells :: WindowConfig -> CellsConfig -> IO [Ref Button]
+createGameCells wndConf cllsConf = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
- forM_ [0..size*size-1] $ \i -> do
-    button <- newButton (i `mod` size*buttonSize + padX) (i `div` size*buttonSize + padY) buttonSize buttonSize (Just "")
+ forM_ [0..inRow*inRow-1] $ \i -> do
+    button <- newButton (i `mod` inRow*buttonSize + padX) (i `div` inRow*buttonSize + padY) buttonSize buttonSize (Just "")
     setLabelsize button (FontSize 15)
     modifyIORef lstButtonsIO (++ [button])
     return ()
  lstButtons <- readIORef lstButtonsIO
- forM_ [0..size*size-1] $ \i -> do
-    setCallback (lstButtons !! i) (gameCell lstButtons size)
+ forM_ [0..inRow*inRow-1] $ \i -> do
+    setCallback (lstButtons !! i) (gameCell lstButtons inRow)
  return lstButtons
  where
-   padX = (windowWidth - buttonSize * size) `div` 2
-   padY = (windowHeight - buttonSize * size) `div` 2
+   padX = (windowWidth - buttonSize * inRow) `div` 2
+   padY = (windowHeight - buttonSize * inRow) `div` 2
+   inRow = cntInRow cllsConf
+   buttonSize = cellSize cllsConf
+   windowWidth = width wndConf
+   windowHeight = height wndConf
 
-runInterface :: Int -> IO ()
-runInterface countOfCells = do
+
+runInterface :: WindowConfig -> CellsConfig-> IO ()
+runInterface wndConf cllsConf = do
   writeIntoFile "temp" "X"
 
   window <- doubleWindowNew
-            (Size (Width windowWidth) (Height windowHeight))
+            (Size (Width $ width wndConf) (Height $ height wndConf))
             Nothing
             Nothing
   begin window
 
-  gameCells <- createGameCells countOfCells
+  gameCells <- createGameCells wndConf cllsConf
 
   showWidget window
 

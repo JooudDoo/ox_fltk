@@ -4,7 +4,7 @@ import System.IO
 import Control.Monad
 import System.IO.Strict as NLazy
 
---Все возможные дополнительные небольшие функции лежат тут
+--Все дополнительные небольшие функции лежат тут
 
 mergeList :: [[a]] -> [a]
 mergeList = foldl1 (++)
