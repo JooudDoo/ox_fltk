@@ -17,4 +17,4 @@ windowConfiguration =
 
 main :: IO ()
 main = do
-    runInterface windowConfiguration cellsConfiguration
+    runSimpleXO windowConfiguration cellsConfiguration

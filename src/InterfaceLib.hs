@@ -48,13 +48,14 @@ checkWin player btnLst row = do
    field <- readIORef fieldIO
    playerIsWin <- checkWinPl (refactorList field row) row player
 
-   when playerIsWin $ do
-       print ("Winner is" ++ plT player)
-       cleanAllCells btnLst
-
-   unless (NaP `elem` field) $ do
-       print "Draw"
-       cleanAllCells btnLst
+   if playerIsWin 
+       then do
+        print ("Winner is" ++ plT player)
+        cleanAllCells btnLst
+       else
+        unless (NaP `elem` field) $ do
+            print "Draw"
+            cleanAllCells btnLst
 
 
 cleanAllCells :: [Ref Button] -> IO ()

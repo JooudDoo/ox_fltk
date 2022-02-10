@@ -26,11 +26,12 @@ data CellsConfig =
         cntInRow :: Int
     }
 
-gameCell :: [Ref Button] -> Int -> Ref Button -> IO ()
-gameCell btnLst inRow b' = do
+gameCellFunc :: [Ref Button] -> Int -> Ref Button -> IO ()
+gameCellFunc btnLst inRow b' = do
   player <- readAllFromFile "temp"
   newOXButtonState b'
   checkWin (pl (pack player)) btnLst inRow
+
 
 createGameCells :: WindowConfig -> CellsConfig -> IO [Ref Button]
 createGameCells wndConf cllsConf = do
@@ -42,7 +43,7 @@ createGameCells wndConf cllsConf = do
     return ()
  lstButtons <- readIORef lstButtonsIO
  forM_ [0..inRow*inRow-1] $ \i -> do
-    setCallback (lstButtons !! i) (gameCell lstButtons inRow)
+    setCallback (lstButtons !! i) (gameCellFunc lstButtons inRow)
  return lstButtons
  where
    padX = (windowWidth - buttonSize * inRow) `div` 2
@@ -53,8 +54,8 @@ createGameCells wndConf cllsConf = do
    windowHeight = height wndConf
 
 
-runInterface :: WindowConfig -> CellsConfig-> IO ()
-runInterface wndConf cllsConf = do
+runSimpleXO :: WindowConfig -> CellsConfig-> IO ()
+runSimpleXO wndConf cllsConf = do
   writeIntoFile "temp" "X"
 
   window <- doubleWindowNew
