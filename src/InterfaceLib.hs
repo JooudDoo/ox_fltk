@@ -16,16 +16,18 @@ newButton :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Button)
 newButton xPos yPos xSize ySize = buttonNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
-newOXButtonState :: Ref Button -> IO ()
-newOXButtonState b' = do
+
+newOXButtonState :: Ref Button -> Bool -> IO ()
+newOXButtonState b' pvp = do
   state <- getLabel b'
   when (state == "") $ do
     stateNew <- readAllFromFile "temp"
     setLabel b' $ pack stateNew
-
-    {--if stateNew == "X"
-      then writeIntoFile "temp" "O"
-      else writeIntoFile "temp" "X" --}
+    when pvp $ do
+      if stateNew == "X"
+        then writeIntoFile "temp" "O"
+        else writeIntoFile "temp" "X"
+  
 
 readCells :: [Ref Button] -> Int -> IO [Player]
 readCells cellList inRow = do
@@ -35,10 +37,20 @@ readCells cellList inRow = do
       modifyIORef fieldIO (++ [pl state])
   readIORef fieldIO
 
-checkWin :: Player -> [Ref Button] -> Int -> IO Bool
+
+checkWin :: Player -> [Ref Button] -> Int -> IO GameState 
 checkWin player btnLst row = do
    field <- readCells btnLst row
-   checkWinPl (refactorList field row) row player
+   playerIsWin <- checkWinPl (refactorList field row) row player
+   return $ gState playerIsWin (checkDraw field)
+   
+   
+checkDraw :: [Player] -> GameState 
+checkDraw field 
+  | cntNaPs == 0 = Draw 
+  | otherwise = Game
+  where
+    cntNaPs = length $ filter (==NaP) field
 
 
 cleanAllCells :: [Ref Button] -> IO ()
@@ -57,13 +69,33 @@ refactorList lst inRow = recur lst inRow 0 [] []
                     | otherwise = recur lst inRow 0 [] (res ++ [buff])
 
 
+--TODO 
+--Отдельным блоком
+--Возможность контролировать весь интерфейс
+--Красиво и нарядно
+winWidget :: [Ref Button] -> Player -> IO ()
+winWidget field player = do
+  print ("Winner is " ++ plT player)
+  cleanAllCells field
 
-checkWinPl :: [[Player]] -> Int -> Player -> IO Bool
+
+--TODO 
+--Отдельным блоком
+--Возможность контролировать весь интерфейс
+--Красиво и нарядно
+drawWidget :: [Ref Button] -> IO ()
+drawWidget field = do
+  print "DRAW"
+  cleanAllCells field
+
+
+checkWinPl :: [[Player]] -> Int -> Player -> IO GameState
 checkWinPl pole inRow player = do
   toRight <- newIORef True
   toLeft <- newIORef True
   win <- newIORef False
-  print pole
+
+  when debuging $ print pole
 
   forM_ [0..inRow-1] $ \row -> do
     cols <- newIORef True
@@ -83,4 +115,6 @@ checkWinPl pole inRow player = do
   left <- readIORef toLeft
   right <- readIORef toRight
   winColsRows <- readIORef win
-  return (left || right || winColsRows)
+  if left || right || winColsRows
+    then return Win 
+    else return Game
