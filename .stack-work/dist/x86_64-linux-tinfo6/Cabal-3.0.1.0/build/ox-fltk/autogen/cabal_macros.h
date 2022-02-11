@@ -33,13 +33,27 @@
   (major1) == 0 && (major2) == 8 && (minor) <= 0)
 #endif /* MIN_VERSION_fltkhs */
 
+/* package random-1.1 */
+#ifndef VERSION_random
+#define VERSION_random "1.1"
+#endif /* VERSION_random */
+#ifndef MIN_VERSION_random
+#define MIN_VERSION_random(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  1 || \
+  (major1) == 1 && (major2) == 1 && (minor) <= 0)
+#endif /* MIN_VERSION_random */
+
+/* package strict-0.3.2 */
 #ifndef VERSION_strict
 #define VERSION_strict "0.3.2"
 #endif /* VERSION_strict */
 #ifndef MIN_VERSION_strict
 #define MIN_VERSION_strict(major1,major2,minor) (\
   (major1) <  0 || \
+  (major1) == 0 && (major2) <  3 || \
   (major1) == 0 && (major2) == 3 && (minor) <= 2)
+#endif /* MIN_VERSION_strict */
 
 /* package text-1.2.4.0 */
 #ifndef VERSION_text
@@ -196,7 +210,7 @@
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-5sWRYACBNTKKZZBZWxMf5K-ox-fltk"
+#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-Iu9CVnQY8ZW5KT80NRAcyH-ox-fltk"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.0.0.1"

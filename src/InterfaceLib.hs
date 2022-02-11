@@ -12,17 +12,6 @@ import Data.Text (pack, Text)
 
 --Дополнительные функции для интерефейса тут
 
-data Player = Cross | Zero | NaP deriving (Eq,Show)
-
-pl :: Text -> Player
-pl "X" = Cross
-pl "O" = Zero
-pl _ = NaP
-plT :: Player -> String
-plT Cross = "X"
-plT Zero = "O"
-plT _ = ""
-
 newButton :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Button)
 newButton xPos yPos xSize ySize = buttonNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
@@ -34,28 +23,22 @@ newOXButtonState b' = do
     stateNew <- readAllFromFile "temp"
     setLabel b' $ pack stateNew
 
-    if stateNew == "X"
+    {--if stateNew == "X"
       then writeIntoFile "temp" "O"
-      else writeIntoFile "temp" "X"
+      else writeIntoFile "temp" "X" --}
 
-
-checkWin :: Player -> [Ref Button] -> Int -> IO ()
-checkWin player btnLst row = do
-   fieldIO <- newIORef ([] :: [Player])
-   forM_ [0..row*row-1] $ \i -> do
-      state <- getLabel (btnLst !! i)
+readCells :: [Ref Button] -> Int -> IO [Player]
+readCells cellList inRow = do
+  fieldIO <- newIORef ([] :: [Player])
+  forM_ [0..inRow*inRow-1] $ \i -> do
+      state <- getLabel (cellList !! i)
       modifyIORef fieldIO (++ [pl state])
-   field <- readIORef fieldIO
-   playerIsWin <- checkWinPl (refactorList field row) row player
+  readIORef fieldIO
 
-   if playerIsWin 
-       then do
-        print ("Winner is" ++ plT player)
-        cleanAllCells btnLst
-       else
-        unless (NaP `elem` field) $ do
-            print "Draw"
-            cleanAllCells btnLst
+checkWin :: Player -> [Ref Button] -> Int -> IO Bool
+checkWin player btnLst row = do
+   field <- readCells btnLst row
+   checkWinPl (refactorList field row) row player
 
 
 cleanAllCells :: [Ref Button] -> IO ()

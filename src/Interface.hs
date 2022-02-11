@@ -3,18 +3,19 @@ module Interface where
 
 import AdditionLib
 import InterfaceLib
+import Logic
 
 import qualified Graphics.UI.FLTK.LowLevel.FL as FL
 import Graphics.UI.FLTK.LowLevel.Fl_Types
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Control.Monad
 import Data.IORef
-import Data.Text (pack, Text)
+import Data.Text (pack, Text, unpack)
 
 --Файл с отрисовкой игрового интерфейса
 
-data WindowConfig = 
-    WC 
+data WindowConfig =
+    WC
     {
         width :: Int,
         height :: Int
@@ -28,9 +29,25 @@ data CellsConfig =
 
 gameCellFunc :: [Ref Button] -> Int -> Ref Button -> IO ()
 gameCellFunc btnLst inRow b' = do
-  player <- readAllFromFile "temp"
-  newOXButtonState b'
-  checkWin (pl (pack player)) btnLst inRow
+  state <- getLabel b'
+  when (state == "") $ do
+    player <- readAllFromFile "temp"
+    newOXButtonState b'
+    isWin <- checkWin (pl (pack player)) btnLst inRow
+    if (isWin)
+      then do
+        print("X")
+        cleanAllCells btnLst
+      else do --player2 WIN
+          cells <- readCells btnLst inRow
+          botTurn <- callForBotRandom (refactorList cells inRow) (rPl $ pl $ pack player)
+          setLabel (refactorList btnLst inRow !! fst botTurn !! snd botTurn) "O"
+          checkWin (pl "O") btnLst inRow
+          isWin <- checkWin (pl (pack player)) btnLst inRow
+          when (isWin) $ do
+            print("O")
+            cleanAllCells btnLst
+
 
 
 createGameCells :: WindowConfig -> CellsConfig -> IO [Ref Button]
@@ -42,7 +59,7 @@ createGameCells wndConf cllsConf = do
     modifyIORef lstButtonsIO (++ [button])
     return ()
  lstButtons <- readIORef lstButtonsIO
- forM_ [0..inRow*inRow-1] $ \i -> do
+ forM_ [0..inRow*inRow-1] $ \i ->
     setCallback (lstButtons !! i) (gameCellFunc lstButtons inRow)
  return lstButtons
  where

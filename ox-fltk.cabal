@@ -27,6 +27,7 @@ Executable ox-fltk
                  Logic,
                  InterfaceLib
   Build-Depends:
+    random >= 1.1,
     strict >= 0.3.2,
     base == 4.*,
     fltkhs >= 0.8.0.3,
