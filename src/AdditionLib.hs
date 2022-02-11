@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Data.Monoid
 
 debuging :: Bool
-debuging = False
+debuging = True
 
 --Все дополнительные небольшие функции лежат тут
 

@@ -51,7 +51,6 @@ gameCellPVE btnLst inRow b' = do
         botTurn <- callForBotRandom (refactorList field inRow) botPlayer
         setLabel (refactorList btnLst inRow !! fst botTurn !! snd botTurn) (pack $ plT botPlayer)
         gameState <- checkWin botPlayer btnLst inRow
-        threadDelay (microIntoSeconds 0.3)
         case gameState of
           Win -> winWidget btnLst botPlayer
           Draw -> drawWidget btnLst
