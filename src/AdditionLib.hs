@@ -12,6 +12,7 @@ debuging = True
 
 --Все дополнительные небольшие функции лежат тут
 
+
 data GameState = Win | Draw | Game deriving (Eq, Show)
 gState :: GameState -> GameState -> GameState
 gState Win _= Win

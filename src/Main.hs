@@ -1,12 +1,13 @@
 module Main where
 
 import Interface
+import InterfaceLib
 
 cellsConfiguration :: CellsConfig
 cellsConfiguration = 
     CC {
-        cellSize = 50,
-        cntInRow = 3
+        cellSize = 75,
+        cntInRow = 6
     } 
 windowConfiguration :: WindowConfig 
 windowConfiguration =
@@ -17,4 +18,4 @@ windowConfiguration =
 
 main :: IO ()
 main = do
-    mainMenu windowConfiguration (GC cellsConfiguration windowConfiguration)
+    createMainMenu windowConfiguration (GC cellsConfiguration windowConfiguration)
