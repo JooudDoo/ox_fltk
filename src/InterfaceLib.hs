@@ -59,6 +59,11 @@ newButton :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Button)
 newButton xPos yPos xSize ySize = buttonNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
+
+newLabel :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref TextDisplay)
+newLabel xPos yPos xSize ySize = textDisplayNew
+            (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
+
 newOXButtonState :: Ref Button -> Player -> IO ()
 newOXButtonState b' pl' = do
   state <- getLabel b'

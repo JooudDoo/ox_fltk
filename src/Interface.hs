@@ -120,6 +120,15 @@ createMainMenu windowC gameConfig = do
   simplePVEMode <- newButton (width windowC `div` 4) (height windowC `div` 2 - 50) 200 50 (Just "Simple XO PVE")
   setLabelsize simplePVEMode (FontSize 20)
 
+  decCntCells <- newButton (width windowC `div` 4 + 200) (height windowC `div` 2 + 20) 20 20 (Just "-")
+  cntCells <- newLabel (width windowC `div` 4 + 220) (height windowC `div` 2 + 20) 40 40 (Just "")
+  addCntCells <- newButton (width windowC `div` 4 + 260) (height windowC `div` 2 + 20) 20 20 (Just "+")
+  setLabel cntCells ("3")
+  setLabelsize decCntCells (FontSize 10)
+  setLabelsize cntCells (FontSize 10)
+  setLabelsize addCntCells (FontSize 10)
+
+
   let mainWindow = MG
                     {
                       gameCnf = gameConfig,

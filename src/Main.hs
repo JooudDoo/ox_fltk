@@ -7,7 +7,7 @@ cellsConfiguration :: CellsConfig
 cellsConfiguration = 
     CC {
         cellSize = 75,
-        cntInRow = 6
+        cntInRow = 3
     } 
 windowConfiguration :: WindowConfig 
 windowConfiguration =
