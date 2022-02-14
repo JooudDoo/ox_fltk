@@ -21,6 +21,7 @@ gState _ Win = Win
 gState Game Draw = Draw
 gState _ _ = Game
 
+
 microIntoSeconds :: Double -> Int 
 microIntoSeconds x = floor $ x * 1000000
 
@@ -50,6 +51,7 @@ writeIntoFile fileName what = do
   hSetEncoding file utf8
   hPutStr file what
   hClose file
+
 
 readAllFromFile :: String -> IO String
 readAllFromFile = NLazy.readFile

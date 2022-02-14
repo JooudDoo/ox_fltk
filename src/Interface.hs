@@ -19,7 +19,7 @@ import Data.Text (pack, Text, unpack)
 exitButton :: MainGUI -> [Ref Button] -> IO ()
 exitButton gui btns = do
   let size = 20
-  b' <- newButton 0 (height (wind $ gameCnf gui)-size) size size (Just "<-")
+  b' <- newButton 0 (height (windCnf gui)-size) size size (Just "<-")
   setLabelsize b' (FontSize 12)
   setCallback b' (exitButtonFunc gui btns)
 
@@ -28,9 +28,9 @@ exitButtonFunc :: MainGUI -> [Ref Button] -> Ref Button -> IO ()
 exitButtonFunc gui btns b' = do
   forM_ [0..length btns-1] $ \i -> do
     hide (btns!!i)
-  destroy b'
+  hide b'
   mainMenu gui
-  
+
 
 gameCellPVE :: [Ref Button] -> Int -> Ref Button -> IO ()
 gameCellPVE btnLst inRow b' = do
@@ -74,7 +74,7 @@ runSimpleXOPVE :: MainGUI -> IO ()
 runSimpleXOPVE gui = do
   setLabel (mainWindow gui) "Simple XO PVE"
   begin $ mainWindow gui
-  gameCells <- createGameCells (wind $ gameCnf gui) (cells $ gameCnf gui) gameCellPVE
+  gameCells <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVE
   exitButton gui gameCells
   showWidget $ mainWindow gui
 
@@ -84,62 +84,100 @@ runSimpleXOPVP gui = do
   writeIntoFile "temp" "X"
   setLabel (mainWindow gui) "Simple XO PVP"
   begin $ mainWindow gui
-  gameCells <- createGameCells (wind $ gameCnf gui) (cells $ gameCnf gui) gameCellPVP
+  gameCells <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVP
   exitButton gui gameCells
   showWidget $ mainWindow gui
 
 
+runHardXOPVP :: MainGUI -> IO ()
+runHardXOPVP gui = do
+  setLabel (mainWindow gui) "Hard XO PVP"
+  begin $ mainWindow gui
+
+  exitButton gui []
+  showWidget $ mainWindow gui
+
+
 startGameMode :: MainGUI -> (MainGUI -> IO ()) -> Ref Button -> IO ()
-startGameMode mainWindow func _ = do
-  let buttons = btns mainWindow
-  forM_ [0..length buttons - 1] $ \i -> do
-    hide (buttons !! i) 
-  func mainWindow
+startGameMode gui func _ = do
+  hide $ packs gui
+  func gui
 
 
 mainMenu :: MainGUI -> IO ()
 mainMenu gui = do
   setLabel (mainWindow gui) "Main Menu"
-  let buttons = btns gui
   begin $ mainWindow gui
-  forM_ [0..length buttons - 1] $ \i -> do
-    showWidget (buttons !! i)
+  showWidget $ packs gui
   showWidget $ mainWindow gui
   return ()
 
 
-createMainMenu :: WindowConfig -> GameConfig -> IO ()
-createMainMenu windowC gameConfig = do
+decCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
+decCells cnt label _ = do
+  cnt' <- readIORef cnt
+  when (cnt' > 3) $ do
+    writeIORef cnt (cnt'-1)
+    setLabel label (pack $ show $ cnt'-1)
+    return ()
+
+
+addCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
+addCells cnt label _ = do
+  cnt' <- readIORef cnt
+  when (cnt' < 8) $ do
+    modifyIORef cnt (+1)
+    setLabel label (pack $ show $ cnt'+1)
+    return ()
+
+
+createMainMenu :: WindowConfig -> IO ()
+createMainMenu windowC = do
   window <- windowNew
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
           (Just "Main Menu")
-  
-  simplePVPMode <- newButton (width windowC `div` 4) (height windowC `div` 2) 200 50 (Just "Simple XO PVP")
-  setLabelsize simplePVPMode (FontSize 20)
-  simplePVEMode <- newButton (width windowC `div` 4) (height windowC `div` 2 - 50) 200 50 (Just "Simple XO PVE")
+  cellsCount <- newIORef 3
+
+  mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
+
+  begin mainframe
+  simplePVPMode <- newButton 0 (height windowC `div` 4) 200 50 (Just "Simple XO PVP")
+  simplePVEMode <- newButton 0 (height windowC `div` 4 + 50) 200 50 (Just "Simple XO PVE")
+  hardPVPMode <- newButton 0 (height windowC `div` 4 + 100) 200 50 (Just "Hard XO PVP")
+  decCntCells <- newButton 0 (height windowC `div` 4 + 150) 20 20 (Just "-")
+  addCntCells <- newButton 20 (height windowC `div` 4 + 170) 20 20 (Just "+")
+  cntCells <- newLabel 0 (height windowC `div` 4 + 190) 20 20 (Just "3")
+  end mainframe
+
+  setLabelsize hardPVPMode (FontSize 20)
   setLabelsize simplePVEMode (FontSize 20)
-
-  decCntCells <- newButton (width windowC `div` 4 + 200) (height windowC `div` 2 + 20) 20 20 (Just "-")
-  cntCells <- newLabel (width windowC `div` 4 + 220) (height windowC `div` 2 + 20) 40 40 (Just "")
-  addCntCells <- newButton (width windowC `div` 4 + 260) (height windowC `div` 2 + 20) 20 20 (Just "+")
-  setLabel cntCells ("3")
+  setLabelsize simplePVPMode (FontSize 20)
+  
   setLabelsize decCntCells (FontSize 10)
-  setLabelsize cntCells (FontSize 10)
   setLabelsize addCntCells (FontSize 10)
-
+  setLabelsize cntCells (FontSize 10)
 
   let mainWindow = MG
                     {
-                      gameCnf = gameConfig,
+
+                      windCnf = windowC,
+                      cllsCnf = CC
+                        {
+                          cellSize = 50,
+                          cntInRow = cellsCount
+                        },
                       mainWindow = window,
-                      btns = [simplePVPMode, simplePVEMode]
+                      packs = mainframe
                     }
-  
+
   setCallback simplePVPMode (startGameMode mainWindow runSimpleXOPVP)
   setCallback simplePVEMode (startGameMode mainWindow runSimpleXOPVE)
+  setCallback hardPVPMode (startGameMode mainWindow runHardXOPVP)
+
+  setCallback decCntCells (decCells cellsCount cntCells)
+  setCallback addCntCells (addCells cellsCount cntCells)
 
   mainMenu mainWindow
-
   FL.run
   FL.flush

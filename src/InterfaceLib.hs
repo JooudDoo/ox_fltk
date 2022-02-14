@@ -12,6 +12,7 @@ import Data.IORef
 import Data.Text (pack, Text)
 
 --Дополнительные функции для интерефейса тут
+--Сделать проверку на меньшие поля в большом поле
 
 data WindowConfig =
     WC
@@ -23,21 +24,16 @@ data CellsConfig =
     CC
     {
         cellSize :: Int,
-        cntInRow :: Int
-    }
-data GameConfig =
-    GC
-    {
-      cells :: CellsConfig,
-      wind :: WindowConfig
+        cntInRow :: IORef (Int)
     }
 
 data MainGUI =
   MG
   {
-    gameCnf :: GameConfig,
+    cllsCnf :: CellsConfig,
+    windCnf :: WindowConfig,
     mainWindow :: Ref Window,
-    btns :: [Ref Button]
+    packs :: Ref Group 
   }
 
 
@@ -60,8 +56,8 @@ newButton xPos yPos xSize ySize = buttonNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
 
-newLabel :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref TextDisplay)
-newLabel xPos yPos xSize ySize = textDisplayNew
+newLabel :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Box)
+newLabel xPos yPos xSize ySize = boxNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
 newOXButtonState :: Ref Button -> Player -> IO ()
@@ -181,6 +177,9 @@ checkWinPl pole inRow player = do
 createGameCells :: WindowConfig -> CellsConfig -> ([Ref Button] -> Int -> Ref Button -> IO ()) -> IO [Ref Button]
 createGameCells wndConf cllsConf func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
+ inRow <- readIORef $ cntInRow cllsConf
+ let padX = (windowWidth - buttonSize * inRow) `div` 2
+ let padY = (windowHeight - buttonSize * inRow) `div` 2
  forM_ [0..inRow*inRow-1] $ \i -> do
     button <- newButton (i `mod` inRow*buttonSize + padX) (i `div` inRow*buttonSize + padY) buttonSize buttonSize (Just "")
     setLabelsize button (FontSize (fromIntegral $ buttonSize`div`2))
@@ -191,9 +190,6 @@ createGameCells wndConf cllsConf func = do
     setCallback (lstButtons !! i) (func lstButtons inRow)
  return lstButtons
  where
-   padX = (windowWidth - buttonSize * inRow) `div` 2
-   padY = (windowHeight - buttonSize * inRow) `div` 2
-   inRow = cntInRow cllsConf
    buttonSize = cellSize cllsConf
    windowWidth = width wndConf
    windowHeight = height wndConf
