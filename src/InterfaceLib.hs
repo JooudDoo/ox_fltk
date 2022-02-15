@@ -24,7 +24,7 @@ data CellsConfig =
     CC
     {
         cellSize :: Int,
-        cntInRow :: IORef (Int)
+        cntInRow :: IORef Int
     }
 
 data MainGUI =
@@ -33,7 +33,7 @@ data MainGUI =
     cllsCnf :: CellsConfig,
     windCnf :: WindowConfig,
     mainWindow :: Ref Window,
-    packs :: Ref Group 
+    packs :: Ref Group
   }
 data HardField =
   HF
@@ -56,7 +56,7 @@ crossColor :: RGB
 crossColor = (155,17,30)
 zeroColor :: RGB
 zeroColor = (14,19,236)
-backGroundColor :: RGB 
+backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
 
 
@@ -207,11 +207,24 @@ createGameCells wndConf cllsConf func = do
    buttonSize = cellSize cllsConf
    windowWidth = width wndConf
    windowHeight = height wndConf
-  
 
-createHardCells :: MainGUI -> f x -> IO HardField
+
+createHardCells :: MainGUI -> f x -> IO ()
 createHardCells gui func = do
-  let field = HF 
+
+  _ <- createHardCellsField gui 1
+  _ <- createHardCellsField gui 2
+  _ <- createHardCellsField gui 3
+
+  _ <- createHardCellsField gui 4
+  _ <- createHardCellsField gui 5
+  _ <- createHardCellsField gui 6
+
+  _ <- createHardCellsField gui 7
+  _ <- createHardCellsField gui 8
+  _ <- createHardCellsField gui 9
+  return ()
+  {--let field = HF
         {
           field1 = createHardCellsField gui 1,
           field2 = createHardCellsField gui 2,
@@ -223,23 +236,24 @@ createHardCells gui func = do
           field8 = createHardCellsField gui 8,
           field9 = createHardCellsField gui 9
         }
-  return field
+  return field--}
 
 createHardCellsField :: MainGUI -> FieldNumber -> IO [Ref Button]
 createHardCellsField gui field = do
   lstButtonsIO <- newIORef ([] :: [Ref Button])
-  forM_ [0..3] $ \i -> do
-    forM_ [0..3] $ \i -> do
-      b' <- newButton (padX) (padY) (cellSize $ cllsCnf gui) (cellSize $ cllsCnf gui) (Just "")
-      modifyIORef lstButtonsIO (++[b'])
+  forM_ [0..2] $ \i ->
+    forM_ [0..2] $ \d -> do
+    print (i,d)
+    b' <- newButton (padX d) (padY i) (cellSize $ cllsCnf gui) (cellSize $ cllsCnf gui) (Just "")
+    modifyIORef lstButtonsIO (++[b'])
   readIORef lstButtonsIO
-  where
+  where --Костыль с рамками Пофиксить
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
-    padX = (widthW - (3 * (cellSize $ cllsCnf gui))) `div` 2 + (mod(field - 1) 3) * (cellSize $ cllsCnf gui)
-    padY = (heightW - (3 * (cellSize $ cllsCnf gui))) `div` 2 + ((field`div`3) - 1) * (cellSize $ cllsCnf gui)
+    padX i = 75 + ((field-1)`mod`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
+    padY i= 75 + ((field-1)`div`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
 
 
 updateHardCellsFunc :: HardField -> f x -> IO HardField
-updateHardCellsFunc field func = do
+updateHardCellsFunc field func =
   undefined
