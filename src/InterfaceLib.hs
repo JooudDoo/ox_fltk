@@ -38,15 +38,15 @@ data MainGUI =
 data HardField =
   HF
   {
-    field1 :: [Ref Button],
-    field2 :: [Ref Button],
-    field3 :: [Ref Button],
-    field4 :: [Ref Button],
-    field5 :: [Ref Button],
-    field6 :: [Ref Button],
-    field7 :: [Ref Button],
-    field8 :: [Ref Button],
-    field9 :: [Ref Button]
+    field1 :: ([Ref Button], GameState),
+    field2 :: ([Ref Button], GameState),
+    field3 :: ([Ref Button], GameState),
+    field4 :: ([Ref Button], GameState),
+    field5 :: ([Ref Button], GameState),
+    field6 :: ([Ref Button], GameState),
+    field7 :: ([Ref Button], GameState),
+    field8 :: ([Ref Button], GameState),
+    field9 :: ([Ref Button], GameState)
   }
 type FieldNumber = Int
 
@@ -59,6 +59,8 @@ zeroColor = (14,19,236)
 backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
 
+gameFontSize :: FontSize
+gameFontSize = FontSize 25
 
 plToColor :: Player -> RGB
 plToColor Cross = crossColor
@@ -74,22 +76,6 @@ newButton xPos yPos xSize ySize = buttonNew
 newLabel :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Box)
 newLabel xPos yPos xSize ySize = boxNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
-
-newOXButtonState :: Ref Button -> Player -> IO ()
-newOXButtonState b' pl' = do
-  state <- getLabel b'
-  when (state == "") $
-    if pl' == NaP
-      then do
-          stateNew <- readAllFromFile "temp"
-          setLabel b' (pack stateNew)
-          switchColorPlayer (pl $ pack stateNew) b'
-          if stateNew == "X"
-            then writeIntoFile "temp" "O"
-            else writeIntoFile "temp" "X"
-      else do
-        setLabel b' $ pack $ plT pl'
-        switchColorPlayer pl' b'
 
 
 switchColorPlayer :: Player -> Ref Button -> IO ()
@@ -189,10 +175,11 @@ checkWinPl pole inRow player = do
     else return Game
 
 
-createGameCells :: WindowConfig -> CellsConfig -> ([Ref Button] -> Int -> Ref Button -> IO ()) -> IO [Ref Button]
+createGameCells :: WindowConfig -> CellsConfig -> ([Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
 createGameCells wndConf cllsConf func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
  inRow <- readIORef $ cntInRow cllsConf
+ player <- newIORef Cross
  let padX = (windowWidth - buttonSize * inRow) `div` 2
  let padY = (windowHeight - buttonSize * inRow) `div` 2
  forM_ [0..inRow*inRow-1] $ \i -> do
@@ -201,7 +188,7 @@ createGameCells wndConf cllsConf func = do
     modifyIORef lstButtonsIO (++ [button])
  lstButtons <- readIORef lstButtonsIO
  forM_ [0..inRow*inRow-1] $ \i ->
-    setCallback (lstButtons !! i) (func lstButtons inRow)
+    setCallback (lstButtons !! i) (func lstButtons inRow player)
  return lstButtons
  where
    buttonSize = cellSize cllsConf
@@ -209,42 +196,29 @@ createGameCells wndConf cllsConf func = do
    windowHeight = height wndConf
 
 
-createHardCells :: MainGUI -> f x -> IO ()
+createHardCells :: MainGUI -> (HardField -> FieldNumber -> IORef Player -> Ref Button -> IO () ) -> IO ()
 createHardCells gui func = do
-  fieldX <- newIORef ([] :: [Ref Button])
-  cache <- createHardCellsField gui 1 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 2
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 3 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 4 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 5 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 6 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 7 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 8 
-  modifyIORef fieldX (++cache)
-  cache <- createHardCellsField gui 9 
-  modifyIORef fieldX (++cache)
+  playerTurn <- newIORef (Cross :: Player)
+  fieldX <- newIORef ([] :: [[Ref Button]])
+  forM_ [1..9] $ \i -> do
+    cache <- createHardCellsField gui i
+    modifyIORef fieldX (++[cache])
+  fl <- readIORef fieldX
   let field = HF
         {
-          field1 = fl1,
-          field2 = fl2,
-          field3 = fl3,
-          field4 = fl4,
-          field5 = fl5,
-          field6 = fl6,
-          field7 = fl7,
-          field8 = fl8,
-          field9 = fl9
+          field1 = (head fl, Game),
+          field2 = (fl !! 1, Game),
+          field3 = (fl !! 2, Game),
+          field4 = (fl !! 3, Game),
+          field5 = (fl !! 4, Game),
+          field6 = (fl !! 5, Game),
+          field7 = (fl !! 6, Game),
+          field8 = (fl !! 7, Game),
+          field9 = (fl !! 8, Game)
         }
-  updateHardCellsFunc (field1 field) func
+  forM_ [1..9] $ \i ->
+    updateHardCellsFunc field (fl !! (i-1)) func i playerTurn
 
-  return ()
 
 createHardCellsField :: MainGUI -> FieldNumber -> IO [Ref Button]
 createHardCellsField gui field = do
@@ -252,28 +226,19 @@ createHardCellsField gui field = do
   forM_ [0..2] $ \i ->
     forM_ [0..2] $ \d -> do
     b' <- newButton (padX d) (padY i) (cellSize $ cllsCnf gui) (cellSize $ cllsCnf gui) (Just "")
-    --Костыль
-    setCallback b' kostil
+    setLabelsize b' (FontSize (fromIntegral $ cellSize (cllsCnf gui) `div`2))
     modifyIORef lstButtonsIO (++[b'])
-    print winPadX
   readIORef lstButtonsIO
   where
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
-    padX i = winPadX + ((field-1)`mod`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
-    padY i= winPadY + ((field-1)`div`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
+    padX i = winPadX + (field-1)`mod`3 * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
+    padY i= winPadY + (field-1)`div`3 * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
     winPadX = (widthW  - cellSize (cllsCnf gui) * 9) `div` 2
     winPadY = (heightW - cellSize (cllsCnf gui) * 9) `div` 2
 
 
-updateHardCellsFunc :: HardField -> f x -> IO ()
-updateHardCellsFunc field func =
-  undefined
-
-
-kostil :: Ref Button -> IO ()
-kostil b' = do
-  state <- getLabel b'
-  if (state == "X")
-    then setLabel b' "O"
-    else setLabel b' "X"
+updateHardCellsFunc :: HardField -> [Ref Button] -> (HardField -> FieldNumber -> IORef Player -> Ref Button -> IO ()) -> FieldNumber -> IORef Player -> IO ()
+updateHardCellsFunc field btns func num pl = do
+  forM_ [0..8] $ \i -> do
+    setCallback (btns !! i) (func field num pl)

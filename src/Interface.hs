@@ -29,24 +29,27 @@ exitButtonFunc gui frame b' = do
   hide frame
   mainMenu gui
 
-
-gameCellPVE :: [Ref Button] -> Int -> Ref Button -> IO ()
-gameCellPVE btnLst inRow b' = do
+--Исправить костыль с лишним кодом
+gameCellPVE :: [Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()
+gameCellPVE btnLst inRow pla b' = do
   state <- getLabel b'
+  currentPlayer <- readIORef pla
   when (state == "") $ do
-    let humanPlayer = Cross
-    newOXButtonState b' Cross
-    gameState <- checkWin humanPlayer btnLst inRow
+    setLabel b' (pack $ plT currentPlayer)
+    switchColorPlayer currentPlayer b'
+    writeIORef pla (rPl currentPlayer)
+    gameState <- checkWin currentPlayer btnLst inRow
     case gameState of
-      Win -> winWidget btnLst humanPlayer
+      Win -> winWidget btnLst currentPlayer
       Draw -> drawWidget btnLst
       Game -> do
-        let botPlayer = rPl  humanPlayer
+        botPlayer <- readIORef pla
         field <- readCells btnLst inRow
         botTurn <- callForBotRandom (refactorList field inRow) botPlayer
         let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
         setLabel botCell (pack $ plT botPlayer)
         switchColorPlayer botPlayer botCell
+        writeIORef pla (rPl botPlayer)
         gameState <- checkWin botPlayer btnLst inRow
         case gameState of
           Win -> winWidget btnLst botPlayer
@@ -54,23 +57,29 @@ gameCellPVE btnLst inRow b' = do
           Game -> return ()
 
 
-gameCellPVP :: [Ref Button] -> Int -> Ref Button -> IO ()
-gameCellPVP btnLst inRow b' = do
+gameCellPVP :: [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()
+gameCellPVP btnLst inRow pla b' = do
   state <- getLabel b'
+  currentPlayer <- readIORef pla
   when (state == "") $ do
-    playerRead <- readAllFromFile "temp"
-    let currentPlayer = pl (pack playerRead)
-    newOXButtonState b' NaP
+    setLabel b' (pack $ plT currentPlayer)
+    switchColorPlayer currentPlayer b'
     gameState <- checkWin currentPlayer btnLst inRow
+    writeIORef pla (rPl currentPlayer)
     case gameState of
       Win -> winWidget btnLst currentPlayer
       Draw -> drawWidget btnLst
       Game -> return()
 
 
-hardCellPVP :: HardField -> FieldNumber -> Ref Button -> IO () 
-hardCellPVP allField currentField = do
-  undefined
+hardCellPVP :: HardField -> FieldNumber -> IORef Player -> Ref Button -> IO () 
+hardCellPVP allField currentField pl b' = do
+  state <- getLabel b'
+  currentPlayer <- readIORef pl
+  when(state == "") $ do
+    setLabel b' (pack $ plT currentPlayer)
+    switchColorPlayer currentPlayer b'
+    writeIORef pl (rPl currentPlayer)
 
 
 runHardXOPVP :: MainGUI -> IO ()
@@ -103,7 +112,6 @@ runSimpleXOPVE gui = do
 
 runSimpleXOPVP :: MainGUI -> IO ()
 runSimpleXOPVP gui = do
-  writeIntoFile "temp" "X"
   setLabel (mainWindow gui) "Simple XO PVP"
   begin $ mainWindow gui
   
@@ -155,6 +163,7 @@ createMainMenu windowC = do
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
           (Just "Main Menu")
+  begin window
   cellsCount <- newIORef 3
   let bigButtonWidth = 200
   let smallButtonWidth = 20
@@ -164,15 +173,16 @@ createMainMenu windowC = do
   begin mainframe
   simplePVPMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4) bigButtonWidth 50 (Just "Simple XO PVP")
   simplePVEMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 60) bigButtonWidth 50 (Just "Simple XO PVE")
-  hardPVPMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 120) bigButtonWidth 50 (Just "Hard XO PVP")
+  hardPVPMode   <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 120) bigButtonWidth 50 (Just "Hard XO PVP")
 
   addCntCells <- newButton (width windowC - smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
-  cntCells <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
+  cntCells    <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
   decCntCells <- newButton (width windowC - smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
   end mainframe
+  end window
   
-  rgbColorWithRgb (38,104,232) >>= setColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
-  rgbColorWithRgb (38,104,232) >>= setDownColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
+  rgbColorWithRgb (38,104,232)    >>= setColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
+  rgbColorWithRgb (38,104,232)    >>= setDownColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
   rgbColorWithRgb backGroundColor >>= setColor window
 
   setLabelsize hardPVPMode (FontSize 20)
@@ -185,7 +195,6 @@ createMainMenu windowC = do
 
   let mainWindow = MG
                     {
-
                       windCnf = windowC,
                       cllsCnf = CC
                         {
@@ -202,9 +211,7 @@ createMainMenu windowC = do
 
   setCallback decCntCells (decCells cellsCount cntCells)
   setCallback addCntCells (addCells cellsCount cntCells)
-
+  
   mainMenu mainWindow
-  end window
   FL.run
   FL.flush
-
