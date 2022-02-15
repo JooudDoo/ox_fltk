@@ -16,19 +16,17 @@ import Data.Text (pack, Text, unpack)
 
 --Файл с отрисовкой игрового интерфейса
 
-exitButton :: MainGUI -> [Ref Button] -> IO ()
-exitButton gui btns = do
+exitButton :: MainGUI -> Ref Group -> IO ()
+exitButton gui frame = do
   let size = 20
   b' <- newButton 0 (height (windCnf gui)-size) size size (Just "<-")
   setLabelsize b' (FontSize 12)
-  setCallback b' (exitButtonFunc gui btns)
+  setCallback b' (exitButtonFunc gui frame)
 
 
-exitButtonFunc :: MainGUI -> [Ref Button] -> Ref Button -> IO ()
-exitButtonFunc gui btns b' = do
-  forM_ [0..length btns-1] $ \i -> do
-    hide (btns!!i)
-  hide b'
+exitButtonFunc :: MainGUI -> Ref Group -> Ref Button -> IO ()
+exitButtonFunc gui frame b' = do
+  hide frame
   mainMenu gui
 
 
@@ -70,23 +68,9 @@ gameCellPVP btnLst inRow b' = do
       Game -> return()
 
 
-runSimpleXOPVE :: MainGUI -> IO ()
-runSimpleXOPVE gui = do
-  setLabel (mainWindow gui) "Simple XO PVE"
-  begin $ mainWindow gui
-  gameCells <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVE
-  exitButton gui gameCells
-  showWidget $ mainWindow gui
-
-
-runSimpleXOPVP :: MainGUI -> IO ()
-runSimpleXOPVP gui = do
-  writeIntoFile "temp" "X"
-  setLabel (mainWindow gui) "Simple XO PVP"
-  begin $ mainWindow gui
-  gameCells <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVP
-  exitButton gui gameCells
-  showWidget $ mainWindow gui
+hardCellPVP :: HardField -> FieldNumber -> Ref Button -> IO () 
+hardCellPVP allField currentField = do
+  undefined
 
 
 runHardXOPVP :: MainGUI -> IO ()
@@ -94,8 +78,42 @@ runHardXOPVP gui = do
   setLabel (mainWindow gui) "Hard XO PVP"
   begin $ mainWindow gui
 
-  exitButton gui []
-  showWidget $ mainWindow gui
+  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin mainframe
+  _ <- createHardCells gui hardCellPVP
+  exitButton gui mainframe
+
+  end mainframe
+  end $ mainWindow gui
+
+
+runSimpleXOPVE :: MainGUI -> IO ()
+runSimpleXOPVE gui = do
+  setLabel (mainWindow gui) "Simple XO PVE"
+  begin $ mainWindow gui
+
+  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin mainframe
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVE
+  exitButton gui mainframe
+
+  end mainframe
+  end $ mainWindow gui
+
+
+runSimpleXOPVP :: MainGUI -> IO ()
+runSimpleXOPVP gui = do
+  writeIntoFile "temp" "X"
+  setLabel (mainWindow gui) "Simple XO PVP"
+  begin $ mainWindow gui
+  
+  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin mainframe
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVP
+  exitButton gui mainframe
+
+  end mainframe
+  end $ mainWindow gui
 
 
 startGameMode :: MainGUI -> (MainGUI -> IO ()) -> Ref Button -> IO ()
@@ -138,17 +156,24 @@ createMainMenu windowC = do
           Nothing
           (Just "Main Menu")
   cellsCount <- newIORef 3
+  let bigButtonWidth = 200
+  let smallButtonWidth = 20
 
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
 
   begin mainframe
-  simplePVPMode <- newButton 0 (height windowC `div` 4) 200 50 (Just "Simple XO PVP")
-  simplePVEMode <- newButton 0 (height windowC `div` 4 + 50) 200 50 (Just "Simple XO PVE")
-  hardPVPMode <- newButton 0 (height windowC `div` 4 + 100) 200 50 (Just "Hard XO PVP")
-  decCntCells <- newButton 0 (height windowC `div` 4 + 150) 20 20 (Just "-")
-  addCntCells <- newButton 20 (height windowC `div` 4 + 170) 20 20 (Just "+")
-  cntCells <- newLabel 0 (height windowC `div` 4 + 190) 20 20 (Just "3")
+  simplePVPMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4) bigButtonWidth 50 (Just "Simple XO PVP")
+  simplePVEMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 60) bigButtonWidth 50 (Just "Simple XO PVE")
+  hardPVPMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 120) bigButtonWidth 50 (Just "Hard XO PVP")
+
+  addCntCells <- newButton (width windowC - smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
+  cntCells <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
+  decCntCells <- newButton (width windowC - smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
   end mainframe
+  
+  rgbColorWithRgb (38,104,232) >>= setColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
+  rgbColorWithRgb (38,104,232) >>= setDownColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
+  rgbColorWithRgb backGroundColor >>= setColor window
 
   setLabelsize hardPVPMode (FontSize 20)
   setLabelsize simplePVEMode (FontSize 20)
@@ -179,5 +204,18 @@ createMainMenu windowC = do
   setCallback addCntCells (addCells cellsCount cntCells)
 
   mainMenu mainWindow
+  end window
   FL.run
   FL.flush
+
+
+
+windowCnonfig :: WindowConfig 
+windowCnonfig =
+    WC {
+        width = 600,
+        height = 600
+    }
+
+replMain :: IO ()
+replMain = createMainMenu windowCnonfig >> FL.replRun
