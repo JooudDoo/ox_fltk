@@ -6,7 +6,7 @@ import InterfaceLib
 windowConfiguration :: WindowConfig 
 windowConfiguration =
     WC {
-        width = 600,
+        width = 1000,
         height = 600
     }
 

@@ -19,7 +19,7 @@ import Data.Text (pack, Text, unpack)
 exitButton :: MainGUI -> Ref Group -> IO ()
 exitButton gui frame = do
   let size = 20
-  b' <- newButton 0 (height (windCnf gui)-size) size size (Just "<-")
+  b' <- newButton 0 0 size size (Just "<-")
   setLabelsize b' (FontSize 12)
   setCallback b' (exitButtonFunc gui frame)
 
@@ -208,14 +208,3 @@ createMainMenu windowC = do
   FL.run
   FL.flush
 
-
-
-windowCnonfig :: WindowConfig 
-windowCnonfig =
-    WC {
-        width = 600,
-        height = 600
-    }
-
-replMain :: IO ()
-replMain = createMainMenu windowCnonfig >> FL.replRun

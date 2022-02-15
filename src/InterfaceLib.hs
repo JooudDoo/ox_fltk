@@ -38,15 +38,15 @@ data MainGUI =
 data HardField =
   HF
   {
-    field1 :: IO [Ref Button],
-    field2 :: IO [Ref Button],
-    field3 :: IO [Ref Button],
-    field4 :: IO [Ref Button],
-    field5 :: IO [Ref Button],
-    field6 :: IO [Ref Button],
-    field7 :: IO [Ref Button],
-    field8 :: IO [Ref Button],
-    field9 :: IO [Ref Button]
+    field1 :: [Ref Button],
+    field2 :: [Ref Button],
+    field3 :: [Ref Button],
+    field4 :: [Ref Button],
+    field5 :: [Ref Button],
+    field6 :: [Ref Button],
+    field7 :: [Ref Button],
+    field8 :: [Ref Button],
+    field9 :: [Ref Button]
   }
 type FieldNumber = Int
 
@@ -211,49 +211,69 @@ createGameCells wndConf cllsConf func = do
 
 createHardCells :: MainGUI -> f x -> IO ()
 createHardCells gui func = do
-
-  _ <- createHardCellsField gui 1
-  _ <- createHardCellsField gui 2
-  _ <- createHardCellsField gui 3
-
-  _ <- createHardCellsField gui 4
-  _ <- createHardCellsField gui 5
-  _ <- createHardCellsField gui 6
-
-  _ <- createHardCellsField gui 7
-  _ <- createHardCellsField gui 8
-  _ <- createHardCellsField gui 9
-  return ()
-  {--let field = HF
+  fieldX <- newIORef ([] :: [Ref Button])
+  cache <- createHardCellsField gui 1 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 2
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 3 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 4 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 5 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 6 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 7 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 8 
+  modifyIORef fieldX (++cache)
+  cache <- createHardCellsField gui 9 
+  modifyIORef fieldX (++cache)
+  let field = HF
         {
-          field1 = createHardCellsField gui 1,
-          field2 = createHardCellsField gui 2,
-          field3 = createHardCellsField gui 3,
-          field4 = createHardCellsField gui 4,
-          field5 = createHardCellsField gui 5,
-          field6 = createHardCellsField gui 6,
-          field7 = createHardCellsField gui 7,
-          field8 = createHardCellsField gui 8,
-          field9 = createHardCellsField gui 9
+          field1 = fl1,
+          field2 = fl2,
+          field3 = fl3,
+          field4 = fl4,
+          field5 = fl5,
+          field6 = fl6,
+          field7 = fl7,
+          field8 = fl8,
+          field9 = fl9
         }
-  return field--}
+  updateHardCellsFunc (field1 field) func
+
+  return ()
 
 createHardCellsField :: MainGUI -> FieldNumber -> IO [Ref Button]
 createHardCellsField gui field = do
   lstButtonsIO <- newIORef ([] :: [Ref Button])
   forM_ [0..2] $ \i ->
     forM_ [0..2] $ \d -> do
-    print (i,d)
     b' <- newButton (padX d) (padY i) (cellSize $ cllsCnf gui) (cellSize $ cllsCnf gui) (Just "")
+    --Костыль
+    setCallback b' kostil
     modifyIORef lstButtonsIO (++[b'])
+    print winPadX
   readIORef lstButtonsIO
-  where --Костыль с рамками Пофиксить
+  where
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
-    padX i = 75 + ((field-1)`mod`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
-    padY i= 75 + ((field-1)`div`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
+    padX i = winPadX + ((field-1)`mod`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
+    padY i= winPadY + ((field-1)`div`3) * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
+    winPadX = (widthW  - cellSize (cllsCnf gui) * 9) `div` 2
+    winPadY = (heightW - cellSize (cllsCnf gui) * 9) `div` 2
 
 
-updateHardCellsFunc :: HardField -> f x -> IO HardField
+updateHardCellsFunc :: HardField -> f x -> IO ()
 updateHardCellsFunc field func =
   undefined
+
+
+kostil :: Ref Button -> IO ()
+kostil b' = do
+  state <- getLabel b'
+  if (state == "X")
+    then setLabel b' "O"
+    else setLabel b' "X"
