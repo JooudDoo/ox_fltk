@@ -29,16 +29,15 @@ exitButtonFunc gui frame b' = do
   hide frame
   mainMenu gui
 
---Исправить костыль с лишним кодом
+
+--Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво)
 gameCellPVE :: [Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()
 gameCellPVE btnLst inRow pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
-    setLabel b' (pack $ plT currentPlayer)
-    switchColorPlayer currentPlayer b'
-    writeIORef pla (rPl currentPlayer)
-    gameState <- checkWin currentPlayer btnLst inRow
+    newButtonState b' pla
+    gameState <- checkWinSimple currentPlayer btnLst inRow
     case gameState of
       Win -> winWidget btnLst currentPlayer
       Draw -> drawWidget btnLst
@@ -47,10 +46,8 @@ gameCellPVE btnLst inRow pla b' = do
         field <- readCells btnLst inRow
         botTurn <- callForBotRandom (refactorList field inRow) botPlayer
         let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
-        setLabel botCell (pack $ plT botPlayer)
-        switchColorPlayer botPlayer botCell
-        writeIORef pla (rPl botPlayer)
-        gameState <- checkWin botPlayer btnLst inRow
+        newButtonState botCell pla
+        gameState <- checkWinSimple botPlayer btnLst inRow
         case gameState of
           Win -> winWidget btnLst botPlayer
           Draw -> drawWidget btnLst
@@ -62,24 +59,50 @@ gameCellPVP btnLst inRow pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
-    setLabel b' (pack $ plT currentPlayer)
-    switchColorPlayer currentPlayer b'
-    gameState <- checkWin currentPlayer btnLst inRow
-    writeIORef pla (rPl currentPlayer)
+    newButtonState b' pla
+    gameState <- checkWinSimple currentPlayer btnLst inRow
     case gameState of
       Win -> winWidget btnLst currentPlayer
       Draw -> drawWidget btnLst
-      Game -> return()
+      Game -> return ()
 
 
-hardCellPVP :: HardField -> FieldNumber -> IORef Player -> Ref Button -> IO () 
-hardCellPVP allField currentField pl b' = do
-  state <- getLabel b'
+hardCellPVP :: MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()
+hardCellPVP gui allFieldIO btnData pl b' = do
+  stateB <- getLabel b'
   currentPlayer <- readIORef pl
-  when(state == "") $ do
-    setLabel b' (pack $ plT currentPlayer)
-    switchColorPlayer currentPlayer b'
-    writeIORef pl (rPl currentPlayer)
+  begin $ mainWindow gui
+  when(stateB == "") $ do
+    let currentField = fieldN btnData
+    let currentBtn = btnN btnData
+    newButtonState b' pl
+
+    allField <- readIORef allFieldIO
+    
+    --Сделать отдельной функцией активацию/дизактивацию полей
+    if state (allField !! currentBtn) /= Game
+      then
+        forM_ [0..8] $ \i ->
+            activateField (field $ allField !! i)
+      else do
+        forM_ [0..8] $ \i ->
+          when (i/= currentBtn) $
+            deactivateField (field $ allField !! i)
+        activateField (field $ allField !! currentBtn)
+    
+    smallField <- checkWinSimple currentPlayer (field $ allField !! currentField) 3
+    when (smallField /= Game && state (allField !! currentField) == Game) $ do
+          writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = smallField, player = currentPlayer}) currentField)
+          changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame smallField currentPlayer)
+          gameState <- checkWinHard currentPlayer allFieldIO
+          case gameState of
+            Win -> winWidget (field $ allField !! currentBtn) currentPlayer
+            Draw -> drawWidget (field $ allField !! currentBtn)
+            Game -> return ()
+   where
+     checkTypeOfGame x y 
+      | x == Draw = NaP 
+      | otherwise = y
 
 
 runHardXOPVP :: MainGUI -> IO ()
@@ -114,7 +137,7 @@ runSimpleXOPVP :: MainGUI -> IO ()
 runSimpleXOPVP gui = do
   setLabel (mainWindow gui) "Simple XO PVP"
   begin $ mainWindow gui
-  
+
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
   _ <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVP
@@ -180,7 +203,7 @@ createMainMenu windowC = do
   decCntCells <- newButton (width windowC - smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
   end mainframe
   end window
-  
+
   rgbColorWithRgb (38,104,232)    >>= setColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
   rgbColorWithRgb (38,104,232)    >>= setDownColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
   rgbColorWithRgb backGroundColor >>= setColor window
@@ -188,7 +211,7 @@ createMainMenu windowC = do
   setLabelsize hardPVPMode (FontSize 20)
   setLabelsize simplePVEMode (FontSize 20)
   setLabelsize simplePVPMode (FontSize 20)
-  
+
   setLabelsize decCntCells (FontSize 10)
   setLabelsize addCntCells (FontSize 10)
   setLabelsize cntCells (FontSize 10)
@@ -211,7 +234,7 @@ createMainMenu windowC = do
 
   setCallback decCntCells (decCells cellsCount cntCells)
   setCallback addCntCells (addCells cellsCount cntCells)
-  
+
   mainMenu mainWindow
   FL.run
   FL.flush

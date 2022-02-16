@@ -22,7 +22,7 @@ gState Game Draw = Draw
 gState _ _ = Game
 
 
-microIntoSeconds :: Double -> Int 
+microIntoSeconds :: Double -> Int
 microIntoSeconds x = floor $ x * 1000000
 
 
@@ -55,3 +55,7 @@ writeIntoFile fileName what = do
 
 readAllFromFile :: String -> IO String
 readAllFromFile = NLazy.readFile
+
+
+changeInList :: [a] -> a -> Int -> [a]
+changeInList lst elem ind = take ind lst ++ [elem] ++ drop (ind+1) lst

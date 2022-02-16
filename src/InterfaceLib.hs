@@ -38,17 +38,19 @@ data MainGUI =
 data HardField =
   HF
   {
-    field1 :: ([Ref Button], GameState),
-    field2 :: ([Ref Button], GameState),
-    field3 :: ([Ref Button], GameState),
-    field4 :: ([Ref Button], GameState),
-    field5 :: ([Ref Button], GameState),
-    field6 :: ([Ref Button], GameState),
-    field7 :: ([Ref Button], GameState),
-    field8 :: ([Ref Button], GameState),
-    field9 :: ([Ref Button], GameState)
+    field ::[Ref Button], 
+    state :: GameState,
+    player :: Player
   }
 type FieldNumber = Int
+type ButtonNumber = Int
+
+data ButtonData =
+  BD
+  {
+    fieldN :: FieldNumber,
+    btnN :: ButtonNumber
+  }
 
 defaultColor :: RGB
 defaultColor = (0,0,0)
@@ -56,16 +58,24 @@ crossColor :: RGB
 crossColor = (155,17,30)
 zeroColor :: RGB
 zeroColor = (14,19,236)
+crossColor' :: RGB 
+crossColor' = (214,120,130)
+zeroColor' :: RGB 
+zeroColor' = (98,101,224)
 backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
 
 gameFontSize :: FontSize
 gameFontSize = FontSize 25
 
-plToColor :: Player -> RGB
-plToColor Cross = crossColor
-plToColor Zero = zeroColor
-plToColor _ = defaultColor
+plToColorFont :: Player -> RGB
+plToColorFont Cross = crossColor
+plToColorFont Zero = zeroColor
+plToColorFont _ = defaultColor
+plToColorBack :: Player -> RGB
+plToColorBack Cross = crossColor'
+plToColorBack Zero = zeroColor'
+plToColorBack _ = defaultColor
 
 
 newButton :: Int -> Int -> Int -> Int -> Maybe Text -> IO (Ref Button)
@@ -78,9 +88,38 @@ newLabel xPos yPos xSize ySize = boxNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
 
+newButtonState :: Ref Button -> IORef Player -> IO ()
+newButtonState b' pl = do
+  currentPlayer <- readIORef pl
+  setLabel b' (pack $ plT currentPlayer)
+  switchColorPlayer currentPlayer b'
+  writeIORef pl (rPl currentPlayer)
+
+
 switchColorPlayer :: Player -> Ref Button -> IO ()
 switchColorPlayer player widget =
-  rgbColorWithRgb (plToColor player) >>= setLabelcolor widget
+  rgbColorWithRgb (plToColorFont player) >>= setLabelcolor widget
+
+
+changeButtonBlockColor :: [Ref Button] -> Player -> IO ()
+changeButtonBlockColor btns pl = do
+  forM_ [0..length btns-1] $ \i -> do 
+    rgbColorWithRgb (plToColorBack pl) >>= setColor (btns!!i)
+    rgbColorWithRgb (plToColorBack pl) >>= setDownColor (btns!!i)
+    hide (btns!!i)
+    showWidget (btns!!i)
+
+
+deactivateField :: [Ref Button] -> IO ()
+deactivateField btns =
+  forM_ [0..length btns-1] $ \i -> do 
+    deactivate (btns !! i)
+
+
+activateField :: [Ref Button] -> IO ()
+activateField btns =
+  forM_ [0..length btns-1] $ \i -> do 
+    activate (btns !! i)
 
 
 readCells :: [Ref Button] -> Int -> IO [Player]
@@ -92,11 +131,28 @@ readCells cellList inRow = do
   readIORef fieldIO
 
 
-checkWin :: Player -> [Ref Button] -> Int -> IO GameState
-checkWin player btnLst row = do
+checkWinSimple :: Player -> [Ref Button] -> Int -> IO GameState
+checkWinSimple player btnLst row = do
    field <- readCells btnLst row
    playerIsWin <- checkWinPl (refactorList field row) row player
+   when debuging $ print $ refactorList field row
    return $ gState playerIsWin (checkDraw field)
+
+
+checkWinHard :: Player -> IORef [HardField] -> IO GameState
+checkWinHard playerCur fieldIO = do
+   field <- readIORef fieldIO
+   fieldBig <- newIORef ([] :: [Player])
+   forM_ [0..length field -1] $ \i ->
+     if state (field !! i) == Win
+       then
+         modifyIORef fieldBig (++[player (field !! i)])
+        else
+         modifyIORef fieldBig (++[NaP])
+   fieldW <- readIORef fieldBig
+   playerIsWin <- checkWinPl (refactorList fieldW 3) 3 playerCur
+   when debuging $ print $ "BIG" ++ show(refactorList fieldW 3)
+   return $ gState playerIsWin (checkDraw fieldW)
 
 
 checkDraw :: [Player] -> GameState
@@ -144,13 +200,11 @@ drawWidget field = do
   cleanAllCells field
 
 
-checkWinPl :: [[Player]] -> Int -> Player -> IO GameState
+checkWinPl :: Eq a => [[a]] -> Int -> a -> IO GameState
 checkWinPl pole inRow player = do
   toRight <- newIORef True
   toLeft <- newIORef True
   win <- newIORef False
-
-  when debuging $ print pole
 
   forM_ [0..inRow-1] $ \row -> do
     cols <- newIORef True
@@ -196,7 +250,7 @@ createGameCells wndConf cllsConf func = do
    windowHeight = height wndConf
 
 
-createHardCells :: MainGUI -> (HardField -> FieldNumber -> IORef Player -> Ref Button -> IO () ) -> IO ()
+createHardCells :: MainGUI -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> IO ()
 createHardCells gui func = do
   playerTurn <- newIORef (Cross :: Player)
   fieldX <- newIORef ([] :: [[Ref Button]])
@@ -204,20 +258,15 @@ createHardCells gui func = do
     cache <- createHardCellsField gui i
     modifyIORef fieldX (++[cache])
   fl <- readIORef fieldX
-  let field = HF
-        {
-          field1 = (head fl, Game),
-          field2 = (fl !! 1, Game),
-          field3 = (fl !! 2, Game),
-          field4 = (fl !! 3, Game),
-          field5 = (fl !! 4, Game),
-          field6 = (fl !! 5, Game),
-          field7 = (fl !! 6, Game),
-          field8 = (fl !! 7, Game),
-          field9 = (fl !! 8, Game)
-        }
-  forM_ [1..9] $ \i ->
-    updateHardCellsFunc field (fl !! (i-1)) func i playerTurn
+  field <- newIORef (writeHardField fl [] :: [HardField])
+  forM_ [0..8] $ \i ->
+    updateHardCellsFunc field (fl !! i) func i playerTurn gui
+
+
+writeHardField :: [[Ref Button]] -> [HardField] -> [HardField]
+writeHardField btns res 
+  | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP}])
+  | otherwise = res
 
 
 createHardCellsField :: MainGUI -> FieldNumber -> IO [Ref Button]
@@ -238,7 +287,7 @@ createHardCellsField gui field = do
     winPadY = (heightW - cellSize (cllsCnf gui) * 9) `div` 2
 
 
-updateHardCellsFunc :: HardField -> [Ref Button] -> (HardField -> FieldNumber -> IORef Player -> Ref Button -> IO ()) -> FieldNumber -> IORef Player -> IO ()
-updateHardCellsFunc field btns func num pl = do
+updateHardCellsFunc :: IORef [HardField] -> [Ref Button] -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> FieldNumber -> IORef Player -> MainGUI -> IO ()
+updateHardCellsFunc field btns func num pl gui = do
   forM_ [0..8] $ \i -> do
-    setCallback (btns !! i) (func field num pl)
+    setCallback (btns !! i) (func gui field (BD {fieldN = num, btnN = i}) pl)
