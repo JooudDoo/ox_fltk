@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Interface where
 
 import AdditionLib
@@ -31,47 +32,49 @@ exitButtonFunc gui frame b' = do
 
 
 --Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво)
-gameCellPVE :: MainGUI -> [Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()
-gameCellPVE gui btnLst inRow pla b' = do
+gameCellPVE :: SimpleField -> IORef Player -> Ref Button -> IO ()
+gameCellPVE fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    let btnLst = fieldBtns fieldIO
+    let inRow = rowCnt fieldIO
     newButtonState b' pla
-    gameState <- checkWinSimple currentPlayer btnLst inRow
-    case gameState of
-      Win -> winWidget gui btnLst currentPlayer
-      Draw -> drawWidget btnLst
-      Game -> do
-        botPlayer <- readIORef pla
-        field <- readCells btnLst inRow
-        botTurn <- callForBotRandom (refactorList field inRow) botPlayer
-        let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
-        newButtonState botCell pla
-        gameState <- checkWinSimple botPlayer btnLst inRow
-        case gameState of
-          Win -> winWidget gui btnLst botPlayer
-          Draw -> drawWidget btnLst
-          Game -> return ()
+    checkWinSimple currentPlayer btnLst inRow >>=
+      \case
+        Win -> winWidget btnLst currentPlayer
+        Draw -> drawWidget btnLst
+        Game -> do
+          botPlayer <- readIORef pla
+          field <- readCells btnLst inRow
+          botTurn <- callForBotRandom (refactorList field inRow) botPlayer
+          let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
+          newButtonState botCell pla
+          checkWinSimple botPlayer btnLst inRow >>=
+            \case
+              Win -> winWidget btnLst botPlayer
+              Draw -> drawWidget btnLst
+              Game -> return ()
 
 
-gameCellPVP :: MainGUI -> [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()
-gameCellPVP gui btnLst inRow pla b' = do
+gameCellPVP :: SimpleField -> IORef Player -> Ref Button -> IO ()
+gameCellPVP fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    let btnLst = fieldBtns fieldIO
     newButtonState b' pla
-    gameState <- checkWinSimple currentPlayer btnLst inRow
-    case gameState of
-      Win -> winWidget gui btnLst currentPlayer
-      Draw -> drawWidget btnLst
-      Game -> return ()
+    checkWinSimple currentPlayer btnLst (rowCnt fieldIO) >>=
+      \case
+        Win -> winWidget btnLst currentPlayer
+        Draw -> drawWidget btnLst
+        Game -> return ()
 
 
 hardCellPVP :: MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()
 hardCellPVP gui allFieldIO btnData pl b' = do
   stateB <- getLabel b'
   currentPlayer <- readIORef pl
-  begin $ mainWindow gui
   when(stateB == "") $ do
     let currentField = fieldN btnData
     let currentBtn = btnN btnData
@@ -97,7 +100,7 @@ hardCellPVP gui allFieldIO btnData pl b' = do
           case gameState of
             Win ->  do
               cleanHardField allFieldIO
-              winWidget gui (field $ allField !! currentBtn) currentPlayer
+              winWidget (field $ allField !! currentBtn) currentPlayer
             Draw -> drawWidget (field $ allField !! currentBtn)
             Game -> return ()
    where
@@ -127,7 +130,7 @@ runSimpleXOPVE gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) gui gameCellPVE
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gameCellPVE
   exitButton gui mainframe
 
   end mainframe
@@ -141,7 +144,7 @@ runSimpleXOPVP gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) gui gameCellPVP
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gameCellPVP
   exitButton gui mainframe
 
   end mainframe

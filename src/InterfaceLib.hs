@@ -42,6 +42,13 @@ data HardField =
     state :: GameState,
     player :: Player
   }
+data SimpleField =
+  SF
+  {
+    fieldBtns :: [Ref Button],
+    rowCnt :: Int,
+    group :: Ref Group
+  }
 type FieldNumber = Int
 type ButtonNumber = Int
 
@@ -64,9 +71,6 @@ zeroColor' :: RGB
 zeroColor' = (98,101,224)
 backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
-
-gameFontSize :: FontSize
-gameFontSize = FontSize 25
 
 plToColorFont :: Player -> RGB
 plToColorFont Cross = crossColor
@@ -105,11 +109,11 @@ changeButtonBlockColor :: [Ref Button] -> Player -> IO ()
 changeButtonBlockColor btns pl = mapM_ helper btns
   where
     helper :: Ref Button -> IO ()
-    helper s = do
-      rgbColorWithRgb (plToColorBack pl) >>= setColor s
-      rgbColorWithRgb (plToColorBack pl) >>= setDownColor s
-      hide s
-      showWidget s
+    helper b' =
+      rgbColorWithRgb (plToColorBack pl) >>= setColor b' >>
+      rgbColorWithRgb (plToColorBack pl) >>= setDownColor b' >>
+      hide b' >>
+      showWidget b'
 
 
 deactivateField :: [Ref Button] -> IO ()
@@ -123,9 +127,7 @@ activateField = mapM_ activate
 readCells :: [Ref Button] -> Int -> IO [Player]
 readCells cellList inRow = do
   fieldIO <- newIORef ([] :: [Player])
-  forM_ [0..inRow*inRow-1] $ \i -> do
-      state <- getLabel (cellList !! i)
-      modifyIORef fieldIO (++ [pl state])
+  mapM_ (getLabel >=> (\d -> modifyIORef fieldIO (++ [pl d]))) cellList
   readIORef fieldIO
 
 
@@ -196,16 +198,9 @@ refactorList lst inRow = recur lst inRow 0 [] []
 --Отдельным блоком
 --Возможность контролировать весь интерфейс
 --Красиво и нарядно
-winWidget :: MainGUI -> [Ref Button] -> Player -> IO ()
-winWidget gui field player = do
+winWidget :: [Ref Button] -> Player -> IO ()
+winWidget field player = do
   print ("Winner is " ++ plT player)
-
-  begin $ mainWindow gui
-
-  
-
-  end $ mainWindow gui
-
   cleanAllCells field
 
 
@@ -248,8 +243,8 @@ checkWinPl pole inRow player = do
     else return Game
 
 
-createGameCells :: WindowConfig -> CellsConfig -> MainGUI -> (MainGUI -> [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
-createGameCells wndConf cllsConf gui func = do
+createGameCells :: WindowConfig -> CellsConfig -> Ref Group -> (SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
+createGameCells wndConf cllsConf frame func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
  inRow <- readIORef $ cntInRow cllsConf
  player <- newIORef Cross
@@ -260,7 +255,7 @@ createGameCells wndConf cllsConf gui func = do
     setLabelsize button (FontSize (fromIntegral $ buttonSize`div`2))
     modifyIORef lstButtonsIO (++ [button])
  lstButtons <- readIORef lstButtonsIO
- mapM_ (\s -> setCallback s (func gui lstButtons inRow player)) lstButtons
+ mapM_ (\s -> setCallback s (func (SF {fieldBtns = lstButtons, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
    buttonSize = cellSize cllsConf
