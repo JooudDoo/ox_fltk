@@ -102,24 +102,22 @@ switchColorPlayer player widget =
 
 
 changeButtonBlockColor :: [Ref Button] -> Player -> IO ()
-changeButtonBlockColor btns pl = do
-  forM_ [0..length btns-1] $ \i -> do
-    rgbColorWithRgb (plToColorBack pl) >>= setColor (btns!!i)
-    rgbColorWithRgb (plToColorBack pl) >>= setDownColor (btns!!i)
-    hide (btns!!i)
-    showWidget (btns!!i)
+changeButtonBlockColor btns pl = mapM_ helper btns
+  where
+    helper :: Ref Button -> IO ()
+    helper s = do
+      rgbColorWithRgb (plToColorBack pl) >>= setColor s
+      rgbColorWithRgb (plToColorBack pl) >>= setDownColor s
+      hide s
+      showWidget s
 
 
 deactivateField :: [Ref Button] -> IO ()
-deactivateField btns =
-  forM_ [0..length btns-1] $ \i -> do
-    deactivate (btns !! i)
+deactivateField = mapM_ deactivate
 
 
 activateField :: [Ref Button] -> IO ()
-activateField btns =
-  forM_ [0..length btns-1] $ \i -> do
-    activate (btns !! i)
+activateField = mapM_ activate
 
 
 readCells :: [Ref Button] -> Int -> IO [Player]
@@ -164,10 +162,9 @@ checkDraw field
 
 
 cleanAllCells :: [Ref Button] -> IO ()
-cleanAllCells btns =
-   forM_ [0..length btns-1] $ \i -> do
-    setLabel (btns!!i) ""
-    switchColorPlayer NaP (btns!!i)
+cleanAllCells = mapM_ helper
+  where
+    helper s = setLabel s "" >>= \m -> switchColorPlayer NaP s
 
 
 cleanHardField :: IORef [HardField] -> IO ()
@@ -175,13 +172,14 @@ cleanHardField fieldIO = do
   fields <- readIORef fieldIO
   writeIORef fieldIO ([] :: [HardField])
   forM_ [0..8] $ \i -> do
-    forM_ [0..8] $ \d -> do
-      let b' = field (fields !! i) !! d
-      setLabel b' ""
-      setColor b' backgroundColor
-      setDownColor b' backgroundColor
-      activate b'
+    mapM_ helper (field (fields !! i))
     modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP}])
+  where
+    helper :: Ref Button -> IO ()
+    helper s = setLabel s "" >>
+     (setColor s backgroundColor >>
+     (setDownColor s backgroundColor >>
+     activate s))
 
 
 refactorList :: [a] -> Int -> [[a]]
@@ -198,9 +196,16 @@ refactorList lst inRow = recur lst inRow 0 [] []
 --Отдельным блоком
 --Возможность контролировать весь интерфейс
 --Красиво и нарядно
-winWidget :: [Ref Button] -> Player -> IO ()
-winWidget field player = do
+winWidget :: MainGUI -> [Ref Button] -> Player -> IO ()
+winWidget gui field player = do
   print ("Winner is " ++ plT player)
+
+  begin $ mainWindow gui
+
+  
+
+  end $ mainWindow gui
+
   cleanAllCells field
 
 
@@ -243,8 +248,8 @@ checkWinPl pole inRow player = do
     else return Game
 
 
-createGameCells :: WindowConfig -> CellsConfig -> ([Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
-createGameCells wndConf cllsConf func = do
+createGameCells :: WindowConfig -> CellsConfig -> MainGUI -> (MainGUI -> [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
+createGameCells wndConf cllsConf gui func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
  inRow <- readIORef $ cntInRow cllsConf
  player <- newIORef Cross
@@ -255,8 +260,7 @@ createGameCells wndConf cllsConf func = do
     setLabelsize button (FontSize (fromIntegral $ buttonSize`div`2))
     modifyIORef lstButtonsIO (++ [button])
  lstButtons <- readIORef lstButtonsIO
- forM_ [0..inRow*inRow-1] $ \i ->
-    setCallback (lstButtons !! i) (func lstButtons inRow player)
+ mapM_ (\s -> setCallback s (func gui lstButtons inRow player)) lstButtons
  return lstButtons
  where
    buttonSize = cellSize cllsConf
@@ -302,6 +306,6 @@ createHardCellsField gui field = do
 
 
 updateHardCellsFunc :: IORef [HardField] -> [Ref Button] -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> FieldNumber -> IORef Player -> MainGUI -> IO ()
-updateHardCellsFunc field btns func num pl gui = do
-  forM_ [0..8] $ \i -> do
+updateHardCellsFunc field btns func num pl gui =
+  forM_ [0..8] $ \i ->
     setCallback (btns !! i) (func gui field (BD {fieldN = num, btnN = i}) pl)

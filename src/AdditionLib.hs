@@ -8,7 +8,7 @@ import Data.Text (Text)
 import Data.Monoid
 
 debuging :: Bool
-debuging = True
+debuging = False
 
 --Все дополнительные небольшие функции лежат тут
 
@@ -20,10 +20,6 @@ gState Draw Game = Draw
 gState _ Win = Win
 gState Game Draw = Draw
 gState _ _ = Game
-
-
-microIntoSeconds :: Double -> Int
-microIntoSeconds x = floor $ x * 1000000
 
 
 data Player = Cross | Zero | NaP deriving (Eq,Show)

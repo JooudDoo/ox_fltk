@@ -31,15 +31,15 @@ exitButtonFunc gui frame b' = do
 
 
 --Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво)
-gameCellPVE :: [Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()
-gameCellPVE btnLst inRow pla b' = do
+gameCellPVE :: MainGUI -> [Ref Button] -> Int ->  IORef Player -> Ref Button -> IO ()
+gameCellPVE gui btnLst inRow pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
     newButtonState b' pla
     gameState <- checkWinSimple currentPlayer btnLst inRow
     case gameState of
-      Win -> winWidget btnLst currentPlayer
+      Win -> winWidget gui btnLst currentPlayer
       Draw -> drawWidget btnLst
       Game -> do
         botPlayer <- readIORef pla
@@ -49,20 +49,20 @@ gameCellPVE btnLst inRow pla b' = do
         newButtonState botCell pla
         gameState <- checkWinSimple botPlayer btnLst inRow
         case gameState of
-          Win -> winWidget btnLst botPlayer
+          Win -> winWidget gui btnLst botPlayer
           Draw -> drawWidget btnLst
           Game -> return ()
 
 
-gameCellPVP :: [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()
-gameCellPVP btnLst inRow pla b' = do
+gameCellPVP :: MainGUI -> [Ref Button] -> Int -> IORef Player -> Ref Button -> IO ()
+gameCellPVP gui btnLst inRow pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
     newButtonState b' pla
     gameState <- checkWinSimple currentPlayer btnLst inRow
     case gameState of
-      Win -> winWidget btnLst currentPlayer
+      Win -> winWidget gui btnLst currentPlayer
       Draw -> drawWidget btnLst
       Game -> return ()
 
@@ -78,18 +78,17 @@ hardCellPVP gui allFieldIO btnData pl b' = do
     newButtonState b' pl
 
     allField <- readIORef allFieldIO
-    
+
     --Сделать отдельной функцией активацию/дизактивацию полей
     if state (allField !! currentBtn) /= Game
       then
-        forM_ [0..8] $ \i ->
-            activateField (field $ allField !! i)
+        mapM_ (activateField . field) allField
       else do
         forM_ [0..8] $ \i ->
           when (i/= currentBtn) $
             deactivateField (field $ allField !! i)
         activateField (field $ allField !! currentBtn)
-    
+
     smallField <- checkWinSimple currentPlayer (field $ allField !! currentField) 3
     when (smallField /= Game && state (allField !! currentField) == Game) $ do
           writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = smallField, player = currentPlayer}) currentField)
@@ -98,12 +97,12 @@ hardCellPVP gui allFieldIO btnData pl b' = do
           case gameState of
             Win ->  do
               cleanHardField allFieldIO
-              winWidget (field $ allField !! currentBtn) currentPlayer
+              winWidget gui (field $ allField !! currentBtn) currentPlayer
             Draw -> drawWidget (field $ allField !! currentBtn)
             Game -> return ()
    where
-     checkTypeOfGame x y 
-      | x == Draw = NaP 
+     checkTypeOfGame x y
+      | x == Draw = NaP
       | otherwise = y
 
 
@@ -128,7 +127,7 @@ runSimpleXOPVE gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVE
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) gui gameCellPVE
   exitButton gui mainframe
 
   end mainframe
@@ -142,7 +141,7 @@ runSimpleXOPVP gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) gameCellPVP
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) gui gameCellPVP
   exitButton gui mainframe
 
   end mainframe
