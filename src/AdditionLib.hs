@@ -7,8 +7,8 @@ import System.IO.Strict as NLazy
 import Data.Text (Text)
 import Data.Monoid
 
-debuging :: Bool
-debuging = False
+debugging :: Bool
+debugging = False
 
 --Все дополнительные небольшие функции лежат тут
 

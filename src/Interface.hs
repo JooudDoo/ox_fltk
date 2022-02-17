@@ -1,5 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings, LambdaCase #-}
 module Interface where
 
 import AdditionLib
@@ -11,7 +10,6 @@ import Graphics.UI.FLTK.LowLevel.Fl_Types
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Graphics.UI.FLTK.LowLevel.Fl_Enumerations
 import Control.Monad
-import Control.Concurrent
 import Data.IORef
 import Data.Text (pack, Text, unpack)
 
@@ -23,17 +21,16 @@ exitButton gui frame = do
   b' <- newButton 0 0 size size (Just "<-")
   setLabelsize b' (FontSize 12)
   setCallback b' (exitButtonFunc gui frame)
-
-
-exitButtonFunc :: MainGUI -> Ref Group -> Ref Button -> IO ()
-exitButtonFunc gui frame b' = do
-  hide frame
-  mainMenu gui
+  where
+    exitButtonFunc :: MainGUI -> Ref Group -> Ref Button -> IO ()
+    exitButtonFunc gui frame b' = do
+      hide frame
+      mainMenu gui
 
 
 --Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво)
-gameCellPVE :: SimpleField -> IORef Player -> Ref Button -> IO ()
-gameCellPVE fieldIO pla b' = do
+gameCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
+gameCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
@@ -42,8 +39,8 @@ gameCellPVE fieldIO pla b' = do
     newButtonState b' pla
     checkWinSimple currentPlayer btnLst inRow >>=
       \case
-        Win -> winWidget btnLst currentPlayer
-        Draw -> drawWidget btnLst
+        Win -> winWidget gui fieldIO currentPlayer
+        Draw -> drawWidget gui fieldIO
         Game -> do
           botPlayer <- readIORef pla
           field <- readCells btnLst inRow
@@ -52,13 +49,13 @@ gameCellPVE fieldIO pla b' = do
           newButtonState botCell pla
           checkWinSimple botPlayer btnLst inRow >>=
             \case
-              Win -> winWidget btnLst botPlayer
-              Draw -> drawWidget btnLst
+              Win -> winWidget gui fieldIO botPlayer
+              Draw -> drawWidget gui fieldIO
               Game -> return ()
 
 
-gameCellPVP :: SimpleField -> IORef Player -> Ref Button -> IO ()
-gameCellPVP fieldIO pla b' = do
+gameCellPVP :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
+gameCellPVP gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
@@ -66,8 +63,8 @@ gameCellPVP fieldIO pla b' = do
     newButtonState b' pla
     checkWinSimple currentPlayer btnLst (rowCnt fieldIO) >>=
       \case
-        Win -> winWidget btnLst currentPlayer
-        Draw -> drawWidget btnLst
+        Win -> winWidget gui fieldIO currentPlayer
+        Draw -> drawWidget gui fieldIO
         Game -> return ()
 
 
@@ -100,8 +97,12 @@ hardCellPVP gui allFieldIO btnData pl b' = do
           case gameState of
             Win ->  do
               cleanHardField allFieldIO
-              winWidget (field $ allField !! currentBtn) currentPlayer
-            Draw -> drawWidget (field $ allField !! currentBtn)
+              when debugging $ print ("Winner is " ++ plT currentPlayer)
+              --winWidget (field $ allField !! currentBtn) currentPlayer
+            Draw -> do
+              cleanHardField allFieldIO 
+              when debugging $ print ("Draw")
+              --drawWidget (field $ allField !! currentBtn)
             Game -> return ()
    where
      checkTypeOfGame x y
@@ -130,7 +131,7 @@ runSimpleXOPVE gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gameCellPVE
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gui gameCellPVE
   exitButton gui mainframe
 
   end mainframe
@@ -144,7 +145,7 @@ runSimpleXOPVP gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gameCellPVP
+  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gui gameCellPVP
   exitButton gui mainframe
 
   end mainframe
