@@ -38,7 +38,7 @@ data MainGUI =
 data HardField =
   HF
   {
-    field ::[Ref Button], 
+    field ::[Ref Button],
     state :: GameState,
     player :: Player
   }
@@ -58,9 +58,9 @@ crossColor :: RGB
 crossColor = (155,17,30)
 zeroColor :: RGB
 zeroColor = (14,19,236)
-crossColor' :: RGB 
+crossColor' :: RGB
 crossColor' = (214,120,130)
-zeroColor' :: RGB 
+zeroColor' :: RGB
 zeroColor' = (98,101,224)
 backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
@@ -103,7 +103,7 @@ switchColorPlayer player widget =
 
 changeButtonBlockColor :: [Ref Button] -> Player -> IO ()
 changeButtonBlockColor btns pl = do
-  forM_ [0..length btns-1] $ \i -> do 
+  forM_ [0..length btns-1] $ \i -> do
     rgbColorWithRgb (plToColorBack pl) >>= setColor (btns!!i)
     rgbColorWithRgb (plToColorBack pl) >>= setDownColor (btns!!i)
     hide (btns!!i)
@@ -112,13 +112,13 @@ changeButtonBlockColor btns pl = do
 
 deactivateField :: [Ref Button] -> IO ()
 deactivateField btns =
-  forM_ [0..length btns-1] $ \i -> do 
+  forM_ [0..length btns-1] $ \i -> do
     deactivate (btns !! i)
 
 
 activateField :: [Ref Button] -> IO ()
 activateField btns =
-  forM_ [0..length btns-1] $ \i -> do 
+  forM_ [0..length btns-1] $ \i -> do
     activate (btns !! i)
 
 
@@ -168,6 +168,20 @@ cleanAllCells btns =
    forM_ [0..length btns-1] $ \i -> do
     setLabel (btns!!i) ""
     switchColorPlayer NaP (btns!!i)
+
+
+cleanHardField :: IORef [HardField] -> IO ()
+cleanHardField fieldIO = do
+  fields <- readIORef fieldIO
+  writeIORef fieldIO ([] :: [HardField])
+  forM_ [0..8] $ \i -> do
+    forM_ [0..8] $ \d -> do
+      let b' = field (fields !! i) !! d
+      setLabel b' ""
+      setColor b' backgroundColor
+      setDownColor b' backgroundColor
+      activate b'
+    modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP}])
 
 
 refactorList :: [a] -> Int -> [[a]]
@@ -264,7 +278,7 @@ createHardCells gui func = do
 
 
 writeHardField :: [[Ref Button]] -> [HardField] -> [HardField]
-writeHardField btns res 
+writeHardField btns res
   | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP}])
   | otherwise = res
 

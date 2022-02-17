@@ -96,7 +96,9 @@ hardCellPVP gui allFieldIO btnData pl b' = do
           changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame smallField currentPlayer)
           gameState <- checkWinHard currentPlayer allFieldIO
           case gameState of
-            Win -> winWidget (field $ allField !! currentBtn) currentPlayer
+            Win ->  do
+              cleanHardField allFieldIO
+              winWidget (field $ allField !! currentBtn) currentPlayer
             Draw -> drawWidget (field $ allField !! currentBtn)
             Game -> return ()
    where
