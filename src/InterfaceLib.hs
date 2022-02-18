@@ -59,6 +59,7 @@ data ButtonData =
     btnN :: ButtonNumber
   }
 
+
 defaultColor :: RGB
 defaultColor = (0,0,0)
 crossColor :: RGB
@@ -206,15 +207,19 @@ winWidget gui field player = do
   where
     winWindow :: MainGUI -> SimpleField -> Player -> IO ()
     winWindow gui field player = do
+     winX <- getX $ mainWindow gui
+     winY <- getY $ mainWindow gui
+     print winX
+     print winY
      win <- overlayWindowNew (Size (Width $ width (windCnf gui) `div` 2) (Height $ height (windCnf gui) `div` 4))
                               Nothing
                               Nothing
                               (winFunc field)
      setLabel win (pack $ "Winner is " ++ plT player)
      setModal win
+     --setOverride win
      begin win
-     
-     
+
      pushBtn <- newButton 
                 ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2) 
                 (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16) 

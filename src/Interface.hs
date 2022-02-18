@@ -101,7 +101,7 @@ hardCellPVP gui allFieldIO btnData pl b' = do
               --winWidget (field $ allField !! currentBtn) currentPlayer
             Draw -> do
               cleanHardField allFieldIO 
-              when debugging $ print ("Draw")
+              when debugging $ print "Draw"
               --drawWidget (field $ allField !! currentBtn)
             Game -> return ()
    where
