@@ -28,12 +28,13 @@ exitButton gui frame = do
       mainMenu gui
 
 
---Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво)
+--Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво) | Сделать смену порядка возможной
 gameCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
 gameCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " bot move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     let inRow = rowCnt fieldIO
     newButtonState b' pla
@@ -43,6 +44,7 @@ gameCellPVE gui fieldIO pla b' = do
         Draw -> drawWidget gui fieldIO
         Game -> do
           botPlayer <- readIORef pla
+          setLabel (labelInfo fieldIO) (pack $ plT (rPl botPlayer) ++ " human move") --Переделать это окно на красиво богато
           field <- readCells btnLst inRow
           botTurn <- callForBotRandom (refactorList field inRow) botPlayer
           let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
@@ -59,6 +61,7 @@ gameCellPVP gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     newButtonState b' pla
     checkWinSimple currentPlayer btnLst (rowCnt fieldIO) >>=
@@ -100,7 +103,7 @@ hardCellPVP gui allFieldIO btnData pl b' = do
               when debugging $ print ("Winner is " ++ plT currentPlayer)
               --winWidget (field $ allField !! currentBtn) currentPlayer
             Draw -> do
-              cleanHardField allFieldIO 
+              cleanHardField allFieldIO
               when debugging $ print "Draw"
               --drawWidget (field $ allField !! currentBtn)
             Game -> return ()
@@ -124,6 +127,7 @@ runHardXOPVP gui = do
   end $ mainWindow gui
 
 
+--Обьединить функции запуска простых режимов в один
 runSimpleXOPVE :: MainGUI -> IO ()
 runSimpleXOPVE gui = do
   setLabel (mainWindow gui) "Simple XO PVE"
@@ -131,7 +135,8 @@ runSimpleXOPVE gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gui gameCellPVE
+  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello man") --Переделать это окно на красиво богато
+  _ <- createGameCells mainframe gui infoLabel gameCellPVE
   exitButton gui mainframe
 
   end mainframe
@@ -145,7 +150,8 @@ runSimpleXOPVP gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  _ <- createGameCells (windCnf gui) (cllsCnf gui) mainframe gui gameCellPVP
+  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello man") --Переделать это окно на красиво богато
+  _ <- createGameCells mainframe gui infoLabel gameCellPVP
   exitButton gui mainframe
 
   end mainframe

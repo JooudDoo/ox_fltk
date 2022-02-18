@@ -46,6 +46,7 @@ data SimpleField =
   SF
   {
     fieldBtns :: [Ref Button],
+    labelInfo :: Ref Box,
     rowCnt :: Int,
     group :: Ref Group
   }
@@ -198,7 +199,8 @@ refactorList lst inRow = recur lst inRow 0 [] []
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
---Красиво и нарядно
+--Красиво и нарядно (30%)
+--Обьединить блоки и сделать их универсальными\\//
 winWidget :: MainGUI -> SimpleField -> Player -> IO ()
 winWidget gui field player = do
   when debugging $ print ("Winner is " ++ plT player)
@@ -207,18 +209,20 @@ winWidget gui field player = do
   where
     winWindow :: MainGUI -> SimpleField -> Player -> IO ()
     winWindow gui field player = do
-     winX <- getX $ mainWindow gui
-     winY <- getY $ mainWindow gui
-     print winX
-     print winY
      win <- overlayWindowNew (Size (Width $ width (windCnf gui) `div` 2) (Height $ height (windCnf gui) `div` 4))
                               Nothing
                               Nothing
                               (winFunc field)
      setLabel win (pack $ "Winner is " ++ plT player)
      setModal win
+     clearBorder win
      --setOverride win
      begin win
+     infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                             10 
+                             (width (windCnf gui) `div` 3)
+                             (height (windCnf gui) `div` 10) 
+                             (Just $ pack $ "Winner is " ++ plT player) --Переделать это окно на красиво богато
 
      pushBtn <- newButton 
                 ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2) 
@@ -240,7 +244,8 @@ winWidget gui field player = do
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓
---Красиво и нарядно
+--Красиво и нарядно (30%)
+--Обьединить блоки и сделать их универсальными\\//
 drawWidget :: MainGUI -> SimpleField -> IO ()
 drawWidget gui field = do
   when debugging $ print "DRAW"
@@ -253,10 +258,14 @@ drawWidget gui field = do
                               Nothing
                               Nothing
                               (winFunc field)
-     setLabel win (pack $ "Draw")
      setModal win
+     clearBorder win
      begin win
-     
+     infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                             10 
+                             (width (windCnf gui) `div` 3)
+                             (height (windCnf gui) `div` 10) 
+                             (Just "Draw") --Переделать это окно на красиво богато
      
      pushBtn <- newButton 
                 ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2) 
@@ -303,10 +312,10 @@ checkWinPl pole inRow player = do
     else return Game
 
 
-createGameCells :: WindowConfig -> CellsConfig -> Ref Group -> MainGUI -> (MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
-createGameCells wndConf cllsConf frame gui func = do
+createGameCells ::Ref Group -> MainGUI -> Ref Box -> (MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
+createGameCells frame gui lb func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
- inRow <- readIORef $ cntInRow cllsConf
+ inRow <- readIORef $ cntInRow $ cllsCnf gui
  player <- newIORef Cross
  let padX = (windowWidth - buttonSize * inRow) `div` 2
  let padY = (windowHeight - buttonSize * inRow) `div` 2
@@ -315,12 +324,12 @@ createGameCells wndConf cllsConf frame gui func = do
     setLabelsize button (FontSize (fromIntegral $ buttonSize`div`2))
     modifyIORef lstButtonsIO (++ [button])
  lstButtons <- readIORef lstButtonsIO
- mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons, group = frame, rowCnt = inRow}) player)) lstButtons
+ mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize = cellSize cllsConf
-   windowWidth = width wndConf
-   windowHeight = height wndConf
+   buttonSize = cellSize $cllsCnf gui
+   windowWidth = width $ windCnf gui
+   windowHeight = height $ windCnf gui
 
 
 createHardCells :: MainGUI -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> IO ()
