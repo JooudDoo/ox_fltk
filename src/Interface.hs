@@ -15,6 +15,12 @@ import Data.Text (pack, Text, unpack)
 
 --Файл с отрисовкой игрового интерфейса
 
+images :: [String]
+images = ["simplePVP.png",
+          "simplePVE.png",
+          "hardPVP.png"]
+
+
 exitButton :: MainGUI -> Ref Group -> IO ()
 exitButton gui frame = do
   let size = 20
@@ -193,21 +199,26 @@ addCells cnt label _ = do
 
 createMainMenu :: WindowConfig -> IO ()
 createMainMenu windowC = do
+  imgs <- readAssetsImages images
+  --MAINMENUCONTS не трогать
+  let bigButtonWidth = 300
+  let bigButtonHeight = 100
+  let smallButtonWidth = 20
+  --MAINMENUCONTS
   window <- windowNew
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
           (Just "Main Menu")
   begin window
   cellsCount <- newIORef 3
-  let bigButtonWidth = 200
-  let smallButtonWidth = 20
+
 
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
 
   begin mainframe
-  simplePVPMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4) bigButtonWidth 50 (Just "Simple XO PVP")
-  simplePVEMode <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 60) bigButtonWidth 50 (Just "Simple XO PVE")
-  hardPVPMode   <- newButton (width windowC - bigButtonWidth *2) (height windowC `div` 4 + 120) bigButtonWidth 50 (Just "Hard XO PVP")
+  simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4) bigButtonWidth bigButtonHeight Nothing
+  simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
+  hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing
 
   addCntCells <- newButton (width windowC - smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
   cntCells    <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
@@ -215,13 +226,11 @@ createMainMenu windowC = do
   end mainframe
   end window
 
-  rgbColorWithRgb (38,104,232)    >>= setColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
-  rgbColorWithRgb (38,104,232)    >>= setDownColor simplePVPMode --НАЙТИ СПОСОБ МЕНЯТЬ ГРАНИЦЫ
-  rgbColorWithRgb backGroundColor >>= setColor window
+  setImage simplePVPMode (Just (head imgs))
+  setImage simplePVEMode (Just (imgs !! 1))
+  setImage hardPVPMode   (Just (imgs !! 2))
 
-  setLabelsize hardPVPMode (FontSize 20)
-  setLabelsize simplePVEMode (FontSize 20)
-  setLabelsize simplePVPMode (FontSize 20)
+  rgbColorWithRgb backGroundColor >>= setColor window
 
   setLabelsize decCntCells (FontSize 10)
   setLabelsize addCntCells (FontSize 10)

@@ -22,6 +22,28 @@
   (major1) == 4 && (major2) == 13 && (minor) <= 0)
 #endif /* MIN_VERSION_base */
 
+/* package bytestring-0.10.10.0 */
+#ifndef VERSION_bytestring
+#define VERSION_bytestring "0.10.10.0"
+#endif /* VERSION_bytestring */
+#ifndef MIN_VERSION_bytestring
+#define MIN_VERSION_bytestring(major1,major2,minor) (\
+  (major1) <  0 || \
+  (major1) == 0 && (major2) <  10 || \
+  (major1) == 0 && (major2) == 10 && (minor) <= 10)
+#endif /* MIN_VERSION_bytestring */
+
+/* package directory-1.3.4.0 */
+#ifndef VERSION_directory
+#define VERSION_directory "1.3.4.0"
+#endif /* VERSION_directory */
+#ifndef MIN_VERSION_directory
+#define MIN_VERSION_directory(major1,major2,minor) (\
+  (major1) <  1 || \
+  (major1) == 1 && (major2) <  3 || \
+  (major1) == 1 && (major2) == 3 && (minor) <= 4)
+#endif /* MIN_VERSION_directory */
+
 /* package fltkhs-0.8.0.3 */
 #ifndef VERSION_fltkhs
 #define VERSION_fltkhs "0.8.0.3"
@@ -210,7 +232,7 @@
 #endif /* MIN_TOOL_VERSION_strip */
 
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-Iu9CVnQY8ZW5KT80NRAcyH-ox-fltk"
+#define CURRENT_COMPONENT_ID "ox-fltk-0.0.0.1-HlajXVleijs382LtGL1o5f-ox-fltk"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.0.0.1"

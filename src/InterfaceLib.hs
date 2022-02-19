@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module InterfaceLib where
 
 import AdditionLib
@@ -9,6 +9,8 @@ import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Graphics.UI.FLTK.LowLevel.Fl_Enumerations
 import Control.Monad
 import Data.IORef
+import Data.Either
+import qualified Data.ByteString as B
 import Data.Text (pack, Text)
 
 --Дополнительные функции для интерефейса тут
@@ -230,6 +232,7 @@ winWidget gui field player = do
                 (width (windCnf gui) `div` 3) 
                 (height (windCnf gui) `div` 16) 
                 (Just "Da?")
+     
      setCallback pushBtn (btnFunc win)
      showWidget win
      end win

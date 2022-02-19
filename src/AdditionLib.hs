@@ -1,10 +1,14 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
 module AdditionLib where
 
 import System.IO
 import Control.Monad
 import System.IO.Strict as NLazy
-import Data.Text (Text)
+import Data.Text (Text, pack)
+import qualified Data.ByteString as B
+import Graphics.UI.FLTK.LowLevel.PNGImage
+import Graphics.UI.FLTK.LowLevel.FLTKHS
+import Control.Exception
 import Data.Monoid
 
 debugging :: Bool
@@ -55,3 +59,18 @@ readAllFromFile = NLazy.readFile
 
 changeInList :: [a] -> a -> Int -> [a]
 changeInList lst elem ind = take ind lst ++ [elem] ++ drop (ind+1) lst
+
+
+readAssetsImages :: [String] -> IO [Ref PNGImage]
+readAssetsImages pathsRaw = do
+  let paths = map ("assets/images/" ++) pathsRaw
+  mapM
+      (\p -> do
+          bytes <- B.readFile p `catch`
+                    (\(_ :: SomeException) -> ioError
+                          (userError ("Image does not exist at path: " ++ p)))
+          iE <- pngImageNewWithData (pack "") bytes
+          case iE of
+            Left _ -> ioError (userError ("Unable to read image data into a PNGImage:\n" ++ p))
+            Right i -> return i)
+      paths
