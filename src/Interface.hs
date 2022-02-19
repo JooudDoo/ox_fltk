@@ -18,7 +18,8 @@ import Data.Text (pack, Text, unpack)
 images :: [String]
 images = ["simplePVP.png",
           "simplePVE.png",
-          "hardPVP.png"]
+          "hardPVP.png",
+          "mainMenuBack.png"]
 
 
 exitButton :: MainGUI -> Ref Group -> IO ()
@@ -40,11 +41,12 @@ gameCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    block <- readIORef $ cellToWin $ cllsCnf gui
     setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " bot move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     let inRow = rowCnt fieldIO
     newButtonState b' pla
-    checkWinSimple currentPlayer btnLst inRow >>=
+    checkWinSimple currentPlayer block inRow btnLst >>=
       \case
         Win -> winWidget gui fieldIO currentPlayer
         Draw -> drawWidget gui fieldIO
@@ -55,7 +57,7 @@ gameCellPVE gui fieldIO pla b' = do
           botTurn <- callForBotRandom (refactorList field inRow) botPlayer
           let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
           newButtonState botCell pla
-          checkWinSimple botPlayer btnLst inRow >>=
+          checkWinSimple botPlayer block inRow btnLst >>=
             \case
               Win -> winWidget gui fieldIO botPlayer
               Draw -> drawWidget gui fieldIO
@@ -67,10 +69,11 @@ gameCellPVP gui fieldIO pla b' = do
   state <- getLabel b'
   currentPlayer <- readIORef pla
   when (state == "") $ do
+    block <- readIORef $ cellToWin $ cllsCnf gui
     setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     newButtonState b' pla
-    checkWinSimple currentPlayer btnLst (rowCnt fieldIO) >>=
+    checkWinSimple currentPlayer block (rowCnt fieldIO) btnLst  >>=
       \case
         Win -> winWidget gui fieldIO currentPlayer
         Draw -> drawWidget gui fieldIO
@@ -87,9 +90,10 @@ hardCellPVP gui allFieldIO btnData pl b' = do
     newButtonState b' pl
 
     allField <- readIORef allFieldIO
+    smallField <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField) 
 
     --Сделать отдельной функцией активацию/дизактивацию полей
-    if state (allField !! currentBtn) /= Game
+    if (state (allField !! currentBtn) /= Game) || (smallField /= Game && currentBtn == currentField)
       then
         mapM_ (activateField . field) allField
       else do
@@ -98,7 +102,7 @@ hardCellPVP gui allFieldIO btnData pl b' = do
             deactivateField (field $ allField !! i)
         activateField (field $ allField !! currentBtn)
 
-    smallField <- checkWinSimple currentPlayer (field $ allField !! currentField) 3
+    
     when (smallField /= Game && state (allField !! currentField) == Game) $ do
           writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = smallField, player = currentPlayer}) currentField)
           changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame smallField currentPlayer)
@@ -164,7 +168,7 @@ runSimpleXOPVP gui = do
   end $ mainWindow gui
 
 
-startGameMode :: MainGUI -> (MainGUI -> IO ()) -> Ref Button -> IO ()
+startGameMode :: MainGUI -> (MainGUI -> IO ()) -> Ref a -> IO ()
 startGameMode gui func _ = do
   hide $ packs gui
   func gui
@@ -179,27 +183,11 @@ mainMenu gui = do
   return ()
 
 
-decCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
-decCells cnt label _ = do
-  cnt' <- readIORef cnt
-  when (cnt' > 3) $ do
-    writeIORef cnt (cnt'-1)
-    setLabel label (pack $ show $ cnt'-1)
-    return ()
-
-
-addCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
-addCells cnt label _ = do
-  cnt' <- readIORef cnt
-  when (cnt' < 8) $ do
-    modifyIORef cnt (+1)
-    setLabel label (pack $ show $ cnt'+1)
-    return ()
-
-
 createMainMenu :: WindowConfig -> IO ()
 createMainMenu windowC = do
   imgs <- readAssetsImages images
+  temp <- newIORef 3
+  cellsCount <- newIORef 3
   --MAINMENUCONTS не трогать
   let bigButtonWidth = 300
   let bigButtonHeight = 100
@@ -210,12 +198,12 @@ createMainMenu windowC = do
           Nothing
           (Just "Main Menu")
   begin window
-  cellsCount <- newIORef 3
-
+  
 
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
 
   begin mainframe
+  backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
   simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4) bigButtonWidth bigButtonHeight Nothing
   simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
   hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing
@@ -229,6 +217,7 @@ createMainMenu windowC = do
   setImage simplePVPMode (Just (head imgs))
   setImage simplePVEMode (Just (imgs !! 1))
   setImage hardPVPMode   (Just (imgs !! 2))
+  setImage backLayout    (Just (imgs !! 3)) --Доработать задний фон
 
   rgbColorWithRgb backGroundColor >>= setColor window
 
@@ -242,7 +231,8 @@ createMainMenu windowC = do
                       cllsCnf = CC
                         {
                           cellSize = 50,
-                          cntInRow = cellsCount
+                          cntInRow = cellsCount,
+                          cellToWin = temp 
                         },
                       mainWindow = window,
                       packs = mainframe

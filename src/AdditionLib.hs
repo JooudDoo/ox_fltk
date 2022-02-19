@@ -12,7 +12,7 @@ import Control.Exception
 import Data.Monoid
 
 debugging :: Bool
-debugging = False
+debugging = True
 
 --Все дополнительные небольшие функции лежат тут
 

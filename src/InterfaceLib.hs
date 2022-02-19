@@ -26,7 +26,8 @@ data CellsConfig =
     CC
     {
         cellSize :: Int,
-        cntInRow :: IORef Int
+        cntInRow :: IORef Int,
+        cellToWin :: IORef Int
     }
 
 data MainGUI =
@@ -120,6 +121,24 @@ changeButtonBlockColor btns pl = mapM_ helper btns
       showWidget b'
 
 
+decCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
+decCells cnt label _ = do
+  cnt' <- readIORef cnt
+  when (cnt' > 3) $ do
+    writeIORef cnt (cnt'-1)
+    setLabel label (pack $ show $ cnt'-1)
+    return ()
+
+
+addCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
+addCells cnt label _ = do
+  cnt' <- readIORef cnt
+  when (cnt' < 8) $ do
+    modifyIORef cnt (+1)
+    setLabel label (pack $ show $ cnt'+1)
+    return ()
+
+
 deactivateField :: [Ref Button] -> IO ()
 deactivateField = mapM_ deactivate
 
@@ -133,30 +152,6 @@ readCells cellList inRow = do
   fieldIO <- newIORef ([] :: [Player])
   mapM_ (getLabel >=> (\d -> modifyIORef fieldIO (++ [pl d]))) cellList
   readIORef fieldIO
-
-
-checkWinSimple :: Player -> [Ref Button] -> Int -> IO GameState
-checkWinSimple player btnLst row = do
-   field <- readCells btnLst row
-   playerIsWin <- checkWinPl (refactorList field row) row player
-   when debugging $ print $ refactorList field row
-   return $ gState playerIsWin (checkDraw field)
-
-
-checkWinHard :: Player -> IORef [HardField] -> IO GameState
-checkWinHard playerCur fieldIO = do
-   field <- readIORef fieldIO
-   fieldBig <- newIORef ([] :: [Player])
-   forM_ [0..length field -1] $ \i ->
-     if state (field !! i) == Win
-       then
-         modifyIORef fieldBig (++[player (field !! i)])
-        else
-         modifyIORef fieldBig (++[NaP])
-   fieldW <- readIORef fieldBig
-   playerIsWin <- checkWinPl (refactorList fieldW 3) 3 playerCur
-   when debugging $ print $ "BIG" ++ show(refactorList fieldW 3)
-   return $ gState playerIsWin (checkDraw fieldW)
 
 
 checkDraw :: [Player] -> GameState
@@ -218,21 +213,20 @@ winWidget gui field player = do
      setLabel win (pack $ "Winner is " ++ plT player)
      setModal win
      clearBorder win
-     --setOverride win
      begin win
      infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                             10 
+                             10
                              (width (windCnf gui) `div` 3)
-                             (height (windCnf gui) `div` 10) 
+                             (height (windCnf gui) `div` 10)
                              (Just $ pack $ "Winner is " ++ plT player) --Переделать это окно на красиво богато
 
-     pushBtn <- newButton 
-                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2) 
-                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16) 
-                (width (windCnf gui) `div` 3) 
-                (height (windCnf gui) `div` 16) 
+     pushBtn <- newButton
+                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
+                (width (windCnf gui) `div` 3)
+                (height (windCnf gui) `div` 16)
                 (Just "Da?")
-     
+
      setCallback pushBtn (btnFunc win)
      showWidget win
      end win
@@ -265,16 +259,16 @@ drawWidget gui field = do
      clearBorder win
      begin win
      infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                             10 
+                             10
                              (width (windCnf gui) `div` 3)
-                             (height (windCnf gui) `div` 10) 
+                             (height (windCnf gui) `div` 10)
                              (Just "Draw") --Переделать это окно на красиво богато
-     
-     pushBtn <- newButton 
-                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2) 
-                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16) 
-                (width (windCnf gui) `div` 3) 
-                (height (windCnf gui) `div` 16) 
+
+     pushBtn <- newButton
+                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
+                (width (windCnf gui) `div` 3)
+                (height (windCnf gui) `div` 16)
                 (Just "Da?")
      setCallback pushBtn (btnFunc win)
      showWidget win
@@ -286,12 +280,75 @@ drawWidget gui field = do
     winFunc :: SimpleField -> Ref OverlayWindow -> IO ()
     winFunc field win = activate (group field)
 
+
+checkWinSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
+checkWinSimple player block row btnLst = do
+   field <- readCells btnLst row
+   playerIsWin <- checkWinPlCustom (refactorList field row) row block player
+   when debugging $ print $ refactorList field row
+   return $ gState playerIsWin (checkDraw field)
+
+
+checkWinHard :: Player -> IORef [HardField] -> IO GameState
+checkWinHard playerCur fieldIO = do
+   field <- readIORef fieldIO
+   fieldBig <- newIORef ([] :: [Player])
+   forM_ [0..length field -1] $ \i ->
+     if state (field !! i) == Win
+       then
+         modifyIORef fieldBig (++[player (field !! i)])
+        else
+         modifyIORef fieldBig (++[NaP])
+   fieldW <- readIORef fieldBig
+   playerIsWin <- checkWinPl (refactorList fieldW 3) 3 playerCur
+   when debugging $ print $ "BIG" ++ show(refactorList fieldW 3)
+   return $ gState playerIsWin (checkDraw fieldW)
+
+
+--Не работают корректно диагонали (Проверяются только основные две)
+checkWinPlCustom :: [[Player]] -> Int -> Int -> Player -> IO GameState
+checkWinPlCustom pole inRowIn block player = do
+  iSwin <- newIORef False
+  forM_[0..inRowIn-1] (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
+  forM_[0..inRowIn-1] $ \i -> check 0 i 1 0 >>= (\s -> modifyIORef iSwin (|| s))
+  check 1 0 1 0 >>= (\s -> modifyIORef iSwin (|| s))
+  check (-1) (inRowIn -1) 1 0 >>= (\s -> modifyIORef iSwin (|| s))
+  iSWinFin <- readIORef iSwin
+  if iSWinFin
+    then 
+      return Win
+    else
+      return Game
+  where
+    check :: Int -> Int -> Int -> Int -> IO Bool
+    check xC offX yC offY = do
+      win <- newIORef False
+      cnt <- newIORef 0
+      savedSymbol <- newIORef NaP
+      forM_[0..inRowIn-1] $ \i -> do
+        let x = i * xC + offX
+        let y = i * yC + offY
+        sSym <- readIORef savedSymbol
+        if pole !! x !! y == sSym
+          then
+            modifyIORef cnt (+1)
+          else do
+            writeIORef savedSymbol (pole !! x !! y)
+            writeIORef cnt 1
+        curSym <- readIORef savedSymbol
+        cntSym <- readIORef cnt
+        when (curSym /= NaP && cntSym == block) $ do
+            writeIORef win True
+            return ()
+      readIORef win
+
+
+
 checkWinPl :: Eq a => [[a]] -> Int -> a -> IO GameState
 checkWinPl pole inRow player = do
   toRight <- newIORef True
   toLeft <- newIORef True
   win <- newIORef False
-
   forM_ [0..inRow-1] $ \row -> do
     cols <- newIORef True
     rows <- newIORef True
