@@ -191,30 +191,33 @@ createMainMenu windowC = do
   --MAINMENUCONTS не трогать
   let bigButtonWidth = 300
   let bigButtonHeight = 100
-  let smallButtonWidth = 20
   --MAINMENUCONTS
+  
   window <- windowNew
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
           (Just "Main Menu")
   begin window
-  
-
+  backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
+  settingButton <- newButton (width windowC-20) 0 20 20 Nothing
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
+  let mainWindow = MG
+                  {
+                    windCnf = windowC,
+                    cllsCnf = CC
+                      {
+                        cellSize = 50,
+                        cntInRow = cellsCount,
+                        cellToWin = cellsToWin 
+                      },
+                    mainWindow = window,
+                    packs = mainframe
+                  }
 
   begin mainframe
-  backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
   simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4) bigButtonWidth bigButtonHeight Nothing
   simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
   hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing
-
-  addCntCells <- newButton (width windowC - smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
-  cntCells    <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
-  decCntCells <- newButton (width windowC - smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
-
-  addCntCellsToWin <- newButton (width windowC - smallButtonWidth-smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
-  cntCellsToWin   <- newLabel (width windowC - smallButtonWidth-smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
-  decCntCellsToWin <- newButton (width windowC - smallButtonWidth-smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
   end mainframe
   end window
 
@@ -225,35 +228,10 @@ createMainMenu windowC = do
 
   rgbColorWithRgb backGroundColor >>= setColor window
 
-  setLabelsize decCntCells (FontSize 10)
-  setLabelsize addCntCells (FontSize 10)
-  setLabelsize cntCells (FontSize 10)
-  setLabelsize decCntCellsToWin (FontSize 10)
-  setLabelsize addCntCellsToWin (FontSize 10)
-  setLabelsize cntCellsToWin (FontSize 10)
-
-  let mainWindow = MG
-                    {
-                      windCnf = windowC,
-                      cllsCnf = CC
-                        {
-                          cellSize = 50,
-                          cntInRow = cellsCount,
-                          cellToWin = cellsToWin 
-                        },
-                      mainWindow = window,
-                      packs = mainframe
-                    }
-
   setCallback simplePVPMode (startGameMode mainWindow runSimpleXOPVP)
   setCallback simplePVEMode (startGameMode mainWindow runSimpleXOPVE)
   setCallback hardPVPMode (startGameMode mainWindow runHardXOPVP)
-
-  setCallback decCntCells (decCells cellsCount cntCells)
-  setCallback addCntCells (addCells cellsCount cntCells)
-
-  setCallback decCntCellsToWin (decCellsToWin cellsToWin cntCellsToWin)
-  setCallback addCntCellsToWin (addCellsToWin cellsToWin cellsCount cntCellsToWin)
+  setCallback settingButton (\_ -> settingsScreen mainWindow cellsToWin cellsCount)
 
   mainMenu mainWindow
   FL.run

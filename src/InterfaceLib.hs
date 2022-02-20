@@ -62,7 +62,12 @@ data ButtonData =
     fieldN :: FieldNumber,
     btnN :: ButtonNumber
   }
-
+data SettingsData =
+  SD
+  {
+    cellsToWin :: IORef Int,
+    cellsInField :: IORef Int
+  }
 
 defaultColor :: RGB
 defaultColor = (0,0,0)
@@ -121,40 +126,77 @@ changeButtonBlockColor btns pl = mapM_ helper btns
       showWidget b'
 
 
-decCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
-decCells cnt label _ = do
-  cnt' <- readIORef cnt
-  when (cnt' > 3) $ do
-    writeIORef cnt (cnt'-1)
-    setLabel label (pack $ show $ cnt'-1)
-    return ()
+settingsScreen :: MainGUI -> IORef Int -> IORef Int -> IO ()
+settingsScreen gui cellsToWin cellsCount = do
+     let winWidth  = width (windCnf gui) `div` 2
+     let winHeight = height (windCnf gui) `div` 4 *3
+     minCells <- newIORef 3
+     maxCells <- newIORef 8
+     cellTOWin <-readIORef cellsToWin
+     cellCount <- readIORef cellsCount
+     let textcntCells = "Count of cells in field: "
+     let textcntToWinCells = "Count of cells to win: "
+
+     win <- overlayWindowNew (Size (Width winWidth) (Height winHeight))
+                              Nothing
+                              Nothing
+                              winFunc
+     setModal win
+     clearBorder win
+     showWidget win
+     begin win
+
+     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount)
+     addCntCells <- newButton 230 30 20 20 (Just "+")
+     decCntCells <- newButton 230 50 20 20 (Just "-")
+
+     cntCellsToWin   <- newLabel 80 140 100 30 (Just $ pack $ textcntToWinCells ++ show cellTOWin)
+     addCntCellsToWin <- newButton 230 130 20 20(Just "+")
+     decCntCellsToWin <- newButton 230 150 20 20(Just "-")
+
+     setLabelsize decCntCells (FontSize 10)
+     setLabelsize addCntCells (FontSize 10)
+     setLabelsize cntCells (FontSize 16)
+     setLabelsize decCntCellsToWin (FontSize 10)
+     setLabelsize addCntCellsToWin (FontSize 10)
+     setLabelsize cntCellsToWin (FontSize 16)
 
 
-addCells :: IORef Int -> Ref Box -> Ref Button -> IO ()
-addCells cnt label _ = do
-  cnt' <- readIORef cnt
-  when (cnt' < 8) $ do
-    modifyIORef cnt (+1)
-    setLabel label (pack $ show $ cnt'+1)
-    return ()
+     setCallback decCntCells (decCells textcntCells cellsToWin cellsCount cntCells)
+     setCallback addCntCells (addCells textcntCells maxCells cellsCount cntCells)
 
+     setCallback decCntCellsToWin (decCells textcntToWinCells minCells cellsToWin cntCellsToWin)
+     setCallback addCntCellsToWin (addCells textcntToWinCells cellsCount cellsToWin cntCellsToWin)
 
-decCellsToWin :: IORef Int -> Ref Box -> Ref Button -> IO ()
-decCellsToWin cnt label _ = do
-  cnt' <- readIORef cnt
-  when (cnt' > 3) $ do
-    writeIORef cnt (cnt'-1)
-    setLabel label (pack $ show $ cnt'-1)
-    return ()
+     exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
+     setCallback exitButton (closeWin win)
+     end win
+     return ()
 
+     where
+      winFunc ::Ref OverlayWindow -> IO ()
+      winFunc = hide
+      closeWin :: Ref OverlayWindow -> Ref Button -> IO ()
+      closeWin win b' = destroy win
 
-addCellsToWin :: IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
-addCellsToWin cnt max label _ = do
-  cnt' <- readIORef cnt
-  readIORef max >>= \s -> when (cnt' < s) $ do
-    modifyIORef cnt (+1)
-    setLabel label (pack $ show $ cnt'+1)
-    return ()
+      decCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
+      decCells txt min cnt label _ = do
+        cnt' <- readIORef cnt
+        minC <- readIORef min
+        when (cnt' > minC) $ do
+          writeIORef cnt (cnt'-1)
+          setLabel label (pack $ txt ++ show (cnt'-1))
+          updateWid label
+      addCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
+      addCells txt max cnt label _ = do
+        cnt' <- readIORef cnt
+        maxC <- readIORef max
+        when (cnt' < maxC) $ do
+          modifyIORef cnt (+1)
+          setLabel label (pack $ txt ++ show (cnt'+1))
+          updateWid label
+      updateWid :: Ref Box -> IO ()
+      updateWid widg = hide widg >> showWidget widg
 
 
 deactivateField :: [Ref Button] -> IO ()
@@ -228,7 +270,6 @@ winWidget gui field player = do
                               Nothing
                               Nothing
                               (winFunc field)
-     setLabel win (pack $ "Winner is " ++ plT player)
      setModal win
      clearBorder win
      begin win
@@ -328,7 +369,7 @@ checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> IO GameState
 checkWinPlCustom pole inRowIn block player = do
   print block
   iSwin <- newIORef False
-  forM_[0..inRowIn-1] $ (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
+  forM_[0..inRowIn-1] (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
   forM_[0..inRowIn-1] $ \i -> check 0 i 1 0 >>= (\s -> modifyIORef iSwin (|| s))
   checkDiags >>= \s -> modifyIORef iSwin (|| s)
   iSWinFin <- readIORef iSwin
@@ -348,7 +389,7 @@ checkWinPlCustom pole inRowIn block player = do
         if pole !! x !! y == player
           then
             modifyIORef cnt (+1)
-          else do
+          else
             writeIORef cnt 0
         cntSym <- readIORef cnt
         when (cntSym == block) $ do
@@ -362,41 +403,41 @@ checkWinPlCustom pole inRowIn block player = do
         cnt2 <- newIORef 0
         cnt3 <- newIORef 0
         cnt4 <- newIORef 0
-        forM_[0..inRowIn-block] $ \offset -> do
+        forM_[0..inRowIn-block] $ \offset ->
           forM_[0..inRowIn-offset-1] $ \y -> do
-            let x1 = y + offset
-            let x2 = inRowIn-1-y-offset
-            if pole !! y !! x1 == player
-              then
-                modifyIORef cnt1 (+1)
-              else do
-                writeIORef cnt1 0
-            if pole !! x1 !! y == player
-              then
-                modifyIORef cnt3 (+1)
-              else do
-                writeIORef cnt3 0
+          let x1 = y + offset
+          let x2 = inRowIn-1-y-offset
+          if pole !! y !! x1 == player
+            then
+              modifyIORef cnt1 (+1)
+            else
+              writeIORef cnt1 0
+          if pole !! x1 !! y == player
+            then
+              modifyIORef cnt3 (+1)
+            else
+              writeIORef cnt3 0
 
-            if pole !! y !! x2 == player
-              then
-                modifyIORef cnt2 (+1)
-              else do
-                writeIORef cnt2 0
+          if pole !! y !! x2 == player
+            then
+              modifyIORef cnt2 (+1)
+            else
+              writeIORef cnt2 0
 
-            if pole !! (y+offset) !! (x2+offset) == player
-              then
-                modifyIORef cnt4 (+1)
-              else do
-                writeIORef cnt4 0
-            cntSym1 <- readIORef cnt1
-            cntSym2 <- readIORef cnt2
-            cntSym3 <- readIORef cnt3
-            cntSym4 <- readIORef cnt4
+          if pole !! (y+offset) !! (x2+offset) == player
+            then
+              modifyIORef cnt4 (+1)
+            else
+              writeIORef cnt4 0
+          cntSym1 <- readIORef cnt1
+          cntSym2 <- readIORef cnt2
+          cntSym3 <- readIORef cnt3
+          cntSym4 <- readIORef cnt4
 
-            when ((cntSym1 == block) || (cntSym2 == block) ||
-                  (cntSym3 == block) || (cntSym4 == block)) $ do
-                writeIORef win True
-                return ()
+          when (cntSym1 == block || cntSym2 == block ||
+                cntSym3 == block || cntSym4 == block) $ do
+              writeIORef win True
+              return ()
         readIORef win
 
 
