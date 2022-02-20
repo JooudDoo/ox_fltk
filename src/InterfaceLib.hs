@@ -139,6 +139,24 @@ addCells cnt label _ = do
     return ()
 
 
+decCellsToWin :: IORef Int -> Ref Box -> Ref Button -> IO ()
+decCellsToWin cnt label _ = do
+  cnt' <- readIORef cnt
+  when (cnt' > 3) $ do
+    writeIORef cnt (cnt'-1)
+    setLabel label (pack $ show $ cnt'-1)
+    return ()
+
+
+addCellsToWin :: IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
+addCellsToWin cnt max label _ = do
+  cnt' <- readIORef cnt
+  readIORef max >>= \s -> when (cnt' < s) $ do
+    modifyIORef cnt (+1)
+    setLabel label (pack $ show $ cnt'+1)
+    return ()
+
+
 deactivateField :: [Ref Button] -> IO ()
 deactivateField = mapM_ deactivate
 
@@ -300,22 +318,22 @@ checkWinHard playerCur fieldIO = do
         else
          modifyIORef fieldBig (++[NaP])
    fieldW <- readIORef fieldBig
-   playerIsWin <- checkWinPl (refactorList fieldW 3) 3 playerCur
+   playerIsWin <- checkWinPlCustom (refactorList fieldW 3) 3 3 playerCur
    when debugging $ print $ "BIG" ++ show(refactorList fieldW 3)
    return $ gState playerIsWin (checkDraw fieldW)
 
 
---Не работают корректно диагонали (Проверяются только основные две)
-checkWinPlCustom :: [[Player]] -> Int -> Int -> Player -> IO GameState
+--Больше тестов возможны ошибки
+checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> IO GameState
 checkWinPlCustom pole inRowIn block player = do
+  print block
   iSwin <- newIORef False
-  forM_[0..inRowIn-1] (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
+  forM_[0..inRowIn-1] $ (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
   forM_[0..inRowIn-1] $ \i -> check 0 i 1 0 >>= (\s -> modifyIORef iSwin (|| s))
-  check 1 0 1 0 >>= (\s -> modifyIORef iSwin (|| s))
-  check (-1) (inRowIn -1) 1 0 >>= (\s -> modifyIORef iSwin (|| s))
+  checkDiags >>= \s -> modifyIORef iSwin (|| s)
   iSWinFin <- readIORef iSwin
   if iSWinFin
-    then 
+    then
       return Win
     else
       return Game
@@ -324,52 +342,62 @@ checkWinPlCustom pole inRowIn block player = do
     check xC offX yC offY = do
       win <- newIORef False
       cnt <- newIORef 0
-      savedSymbol <- newIORef NaP
       forM_[0..inRowIn-1] $ \i -> do
         let x = i * xC + offX
         let y = i * yC + offY
-        sSym <- readIORef savedSymbol
-        if pole !! x !! y == sSym
+        if pole !! x !! y == player
           then
             modifyIORef cnt (+1)
           else do
-            writeIORef savedSymbol (pole !! x !! y)
-            writeIORef cnt 1
-        curSym <- readIORef savedSymbol
+            writeIORef cnt 0
         cntSym <- readIORef cnt
-        when (curSym /= NaP && cntSym == block) $ do
+        when (cntSym == block) $ do
             writeIORef win True
             return ()
       readIORef win
+    checkDiags :: IO Bool
+    checkDiags = do
+        win <- newIORef False
+        cnt1 <- newIORef 0
+        cnt2 <- newIORef 0
+        cnt3 <- newIORef 0
+        cnt4 <- newIORef 0
+        forM_[0..inRowIn-block] $ \offset -> do
+          forM_[0..inRowIn-offset-1] $ \y -> do
+            let x1 = y + offset
+            let x2 = inRowIn-1-y-offset
+            if pole !! y !! x1 == player
+              then
+                modifyIORef cnt1 (+1)
+              else do
+                writeIORef cnt1 0
+            if pole !! x1 !! y == player
+              then
+                modifyIORef cnt3 (+1)
+              else do
+                writeIORef cnt3 0
 
+            if pole !! y !! x2 == player
+              then
+                modifyIORef cnt2 (+1)
+              else do
+                writeIORef cnt2 0
 
+            if pole !! (y+offset) !! (x2+offset) == player
+              then
+                modifyIORef cnt4 (+1)
+              else do
+                writeIORef cnt4 0
+            cntSym1 <- readIORef cnt1
+            cntSym2 <- readIORef cnt2
+            cntSym3 <- readIORef cnt3
+            cntSym4 <- readIORef cnt4
 
-checkWinPl :: Eq a => [[a]] -> Int -> a -> IO GameState
-checkWinPl pole inRow player = do
-  toRight <- newIORef True
-  toLeft <- newIORef True
-  win <- newIORef False
-  forM_ [0..inRow-1] $ \row -> do
-    cols <- newIORef True
-    rows <- newIORef True
-
-    modifyIORef toRight (&& pole !! row !! row==player)
-    modifyIORef toLeft (&& pole !! row !! (inRow-row-1)==player)
-
-    forM_ [0..inRow-1] $ \col -> do
-      modifyIORef cols (&& (pole !! row !! col == player))
-      modifyIORef rows (&& (pole !! col !! row == player))
-
-    val1 <- readIORef cols
-    val2 <- readIORef rows
-    when (val1 || val2) $ writeIORef win True
-
-  left <- readIORef toLeft
-  right <- readIORef toRight
-  winColsRows <- readIORef win
-  if left || right || winColsRows
-    then return Win
-    else return Game
+            when ((cntSym1 == block) || (cntSym2 == block) ||
+                  (cntSym3 == block) || (cntSym4 == block)) $ do
+                writeIORef win True
+                return ()
+        readIORef win
 
 
 createGameCells ::Ref Group -> MainGUI -> Ref Box -> (MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]

@@ -145,7 +145,7 @@ runSimpleXOPVE gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello man") --Переделать это окно на красиво богато
+  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello human") --Переделать это окно на красиво богато
   _ <- createGameCells mainframe gui infoLabel gameCellPVE
   exitButton gui mainframe
 
@@ -160,7 +160,7 @@ runSimpleXOPVP gui = do
 
   mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
   begin mainframe
-  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello man") --Переделать это окно на красиво богато
+  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello human") --Переделать это окно на красиво богато
   _ <- createGameCells mainframe gui infoLabel gameCellPVP
   exitButton gui mainframe
 
@@ -186,7 +186,7 @@ mainMenu gui = do
 createMainMenu :: WindowConfig -> IO ()
 createMainMenu windowC = do
   imgs <- readAssetsImages images
-  temp <- newIORef 3
+  cellsToWin <- newIORef 3
   cellsCount <- newIORef 3
   --MAINMENUCONTS не трогать
   let bigButtonWidth = 300
@@ -211,6 +211,10 @@ createMainMenu windowC = do
   addCntCells <- newButton (width windowC - smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
   cntCells    <- newLabel (width windowC - smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
   decCntCells <- newButton (width windowC - smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
+
+  addCntCellsToWin <- newButton (width windowC - smallButtonWidth-smallButtonWidth) 0 smallButtonWidth 20 (Just "+")
+  cntCellsToWin   <- newLabel (width windowC - smallButtonWidth-smallButtonWidth) 20 smallButtonWidth 20 (Just "3")
+  decCntCellsToWin <- newButton (width windowC - smallButtonWidth-smallButtonWidth) 40 smallButtonWidth 20 (Just "-")
   end mainframe
   end window
 
@@ -224,6 +228,9 @@ createMainMenu windowC = do
   setLabelsize decCntCells (FontSize 10)
   setLabelsize addCntCells (FontSize 10)
   setLabelsize cntCells (FontSize 10)
+  setLabelsize decCntCellsToWin (FontSize 10)
+  setLabelsize addCntCellsToWin (FontSize 10)
+  setLabelsize cntCellsToWin (FontSize 10)
 
   let mainWindow = MG
                     {
@@ -232,7 +239,7 @@ createMainMenu windowC = do
                         {
                           cellSize = 50,
                           cntInRow = cellsCount,
-                          cellToWin = temp 
+                          cellToWin = cellsToWin 
                         },
                       mainWindow = window,
                       packs = mainframe
@@ -244,6 +251,9 @@ createMainMenu windowC = do
 
   setCallback decCntCells (decCells cellsCount cntCells)
   setCallback addCntCells (addCells cellsCount cntCells)
+
+  setCallback decCntCellsToWin (decCellsToWin cellsToWin cntCellsToWin)
+  setCallback addCntCellsToWin (addCellsToWin cellsToWin cellsCount cntCellsToWin)
 
   mainMenu mainWindow
   FL.run
