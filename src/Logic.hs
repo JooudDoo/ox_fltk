@@ -11,8 +11,11 @@ callForBotRandom :: [[Player]] -> Player -> IO (Int, Int)
 callForBotRandom field player = do
     seedRow <- newStdGen
     let rows = randoms seedRow :: [Int]
+    --let rows = [3..6]
     seedColl <- newStdGen
     let colls = randoms seedColl :: [Int]
+    --let colls = [0..6]
+    --let listik = [(i, j) | i <- [0..6], j <- [0..6]] 
     let turn = head $ dropWhile (\(r,c) -> takeCell field r c /= NaP) (zip rows colls)
     --when debuging $ print (abs (fst turn) `mod` length (head field), abs (snd turn) `mod` length (head field))
     return (abs (fst turn) `mod` length (head field), abs (snd turn) `mod` length (head field))
