@@ -3,6 +3,7 @@ module Logic where
 import Data.IORef
 import Control.Monad
 import AdditionLib
+import InterfaceLib
 import System.Random
 --Тут хранится разум бота
 

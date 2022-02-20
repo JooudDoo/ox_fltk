@@ -9,7 +9,7 @@ import qualified Data.ByteString as B
 import Graphics.UI.FLTK.LowLevel.PNGImage
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Control.Exception
-import Data.Monoid
+import Data.IORef
 
 debugging :: Bool
 debugging = True
@@ -59,6 +59,16 @@ readAllFromFile = NLazy.readFile
 
 changeInList :: [a] -> a -> Int -> [a]
 changeInList lst elem ind = take ind lst ++ [elem] ++ drop (ind+1) lst
+
+
+refactorList :: [a] -> Int -> [[a]]
+refactorList lst inRow = recur lst inRow 0 [] []
+    where
+        recur :: [a] -> Int -> Int -> [a] -> [[a]] -> [[a]]
+        recur lst inRow cur buff res
+                    | null lst = res ++ [buff]
+                    | cur /= inRow = recur (tail lst) inRow (cur+1) (buff ++ [head lst]) res
+                    | otherwise = recur lst inRow 0 [] (res ++ [buff])
 
 
 readAssetsImages :: [String] -> IO [Ref PNGImage]

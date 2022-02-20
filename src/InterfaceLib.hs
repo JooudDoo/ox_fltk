@@ -69,6 +69,8 @@ data SettingsData =
     cellsInField :: IORef Int
   }
 
+
+
 defaultColor :: RGB
 defaultColor = (0,0,0)
 crossColor :: RGB
@@ -81,6 +83,11 @@ zeroColor' :: RGB
 zeroColor' = (98,101,224)
 backGroundColor :: RGB
 backGroundColor = (47, 110, 147)
+
+
+cellToWinCoef :: [Int]
+cellToWinCoef = [0,0,0,3,0,4,0,4,0,5]
+
 
 plToColorFont :: Player -> RGB
 plToColorFont Cross = crossColor
@@ -150,23 +157,12 @@ settingsScreen gui cellsToWin cellsCount = do
      addCntCells <- newButton 230 30 20 20 (Just "+")
      decCntCells <- newButton 230 50 20 20 (Just "-")
 
-     cntCellsToWin   <- newLabel 80 140 100 30 (Just $ pack $ textcntToWinCells ++ show cellTOWin)
-     addCntCellsToWin <- newButton 230 130 20 20(Just "+")
-     decCntCellsToWin <- newButton 230 150 20 20(Just "-")
-
      setLabelsize decCntCells (FontSize 10)
      setLabelsize addCntCells (FontSize 10)
      setLabelsize cntCells (FontSize 16)
-     setLabelsize decCntCellsToWin (FontSize 10)
-     setLabelsize addCntCellsToWin (FontSize 10)
-     setLabelsize cntCellsToWin (FontSize 16)
 
-
-     setCallback decCntCells (decCells textcntCells cellsToWin cellsCount cntCells)
+     setCallback decCntCells (decCells textcntCells minCells cellsCount cntCells)
      setCallback addCntCells (addCells textcntCells maxCells cellsCount cntCells)
-
-     setCallback decCntCellsToWin (decCells textcntToWinCells minCells cellsToWin cntCellsToWin)
-     setCallback addCntCellsToWin (addCells textcntToWinCells cellsCount cellsToWin cntCellsToWin)
 
      exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
      setCallback exitButton (closeWin win)
@@ -184,16 +180,18 @@ settingsScreen gui cellsToWin cellsCount = do
         cnt' <- readIORef cnt
         minC <- readIORef min
         when (cnt' > minC) $ do
-          writeIORef cnt (cnt'-1)
-          setLabel label (pack $ txt ++ show (cnt'-1))
+          writeIORef cnt (cnt'-2)
+          writeIORef cellsToWin (cellToWinCoef !! (cnt'-2))
+          setLabel label (pack $ txt ++ show (cnt'-2))
           updateWid label
       addCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
       addCells txt max cnt label _ = do
         cnt' <- readIORef cnt
         maxC <- readIORef max
         when (cnt' < maxC) $ do
-          modifyIORef cnt (+1)
-          setLabel label (pack $ txt ++ show (cnt'+1))
+          modifyIORef cnt (+2)
+          writeIORef cellsToWin (cellToWinCoef !! (cnt'+2))
+          setLabel label (pack $ txt ++ show (cnt'+2))
           updateWid label
       updateWid :: Ref Box -> IO ()
       updateWid widg = hide widg >> showWidget widg
@@ -243,16 +241,6 @@ cleanHardField fieldIO = do
      activate s))
 
 
-refactorList :: [a] -> Int -> [[a]]
-refactorList lst inRow = recur lst inRow 0 [] []
-    where
-        recur :: [a] -> Int -> Int -> [a] -> [[a]] -> [[a]]
-        recur lst inRow cur buff res
-                    | null lst = res ++ [buff]
-                    | cur /= inRow = recur (tail lst) inRow (cur+1) (buff ++ [head lst]) res
-                    | otherwise = recur lst inRow 0 [] (res ++ [buff])
-
-
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
@@ -284,7 +272,7 @@ winWidget gui field player = do
                 (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
                 (width (windCnf gui) `div` 3)
                 (height (windCnf gui) `div` 16)
-                (Just "Da?")
+                (Just "Повтор?")
 
      setCallback pushBtn (btnFunc win)
      showWidget win
@@ -328,7 +316,7 @@ drawWidget gui field = do
                 (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
                 (width (windCnf gui) `div` 3)
                 (height (windCnf gui) `div` 16)
-                (Just "Da?")
+                (Just "Повтор?")
      setCallback pushBtn (btnFunc win)
      showWidget win
      end win
