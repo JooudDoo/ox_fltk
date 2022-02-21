@@ -7,7 +7,8 @@ windowConfiguration :: WindowConfig
 windowConfiguration =
     WC {
         width = 1200,
-        height = 600
+        height = 600,
+        fullscreen = False
     }
 
 main :: IO ()

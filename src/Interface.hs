@@ -39,44 +39,42 @@ exitButton gui frame = do
 gameCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
 gameCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
-  currentPlayer <- readIORef pla
   when (state == "") $ do
-    block <- readIORef $ cellToWin $ cllsCnf gui
-    setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " bot move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     let inRow = rowCnt fieldIO
+    currentPlayer <- readIORef pla
+    block <- readIORef $ cellToWin $ cllsCnf gui
+    setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " bot move") --Переделать это окно на красиво богато
     newButtonState b' pla
     checkWinSimple currentPlayer block inRow btnLst >>=
       \case
-        Win -> winWidget gui fieldIO currentPlayer
-        Draw -> drawWidget gui fieldIO
+        Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
+        Draw -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Draw
         Game -> do
           botPlayer <- readIORef pla
           setLabel (labelInfo fieldIO) (pack $ plT (rPl botPlayer) ++ " human move") --Переделать это окно на красиво богато
-          field <- readCells btnLst inRow
-          botTurn <- callForBotRandom (refactorList field inRow) botPlayer
-          let botCell = refactorList btnLst inRow !! fst botTurn !! snd botTurn
-          newButtonState botCell pla
+          (btx, bty) <- readCells btnLst inRow >>= \f -> callForBotRandom f botPlayer
+          newButtonState (btnLst !! (btx * inRow + bty)) pla
           checkWinSimple botPlayer block inRow btnLst >>=
             \case
-              Win -> winWidget gui fieldIO botPlayer
-              Draw -> drawWidget gui fieldIO
+              Win -> endGameScreen gui (Just fieldIO) Nothing botPlayer Win
+              Draw -> endGameScreen gui (Just fieldIO) Nothing botPlayer Draw
               Game -> return ()
 
 
 gameCellPVP :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
 gameCellPVP gui fieldIO pla b' = do
   state <- getLabel b'
-  currentPlayer <- readIORef pla
   when (state == "") $ do
+    currentPlayer <- readIORef pla
     block <- readIORef $ cellToWin $ cllsCnf gui
     setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
     newButtonState b' pla
     checkWinSimple currentPlayer block (rowCnt fieldIO) btnLst  >>=
       \case
-        Win -> winWidget gui fieldIO currentPlayer
-        Draw -> drawWidget gui fieldIO
+        Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
+        Draw -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Draw
         Game -> return ()
 
 
@@ -90,32 +88,22 @@ hardCellPVP gui allFieldIO btnData pl b' = do
     newButtonState b' pl
 
     allField <- readIORef allFieldIO
-    smallField <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField) 
+    smallField <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField)
 
-    --Сделать отдельной функцией активацию/дизактивацию полей
     if (state (allField !! currentBtn) /= Game) || (smallField /= Game && currentBtn == currentField)
       then
         mapM_ (activateField . field) allField
       else do
-        forM_ [0..8] $ \i ->
-          when (i/= currentBtn) $
-            deactivateField (field $ allField !! i)
+        mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
         activateField (field $ allField !! currentBtn)
 
-    
     when (smallField /= Game && state (allField !! currentField) == Game) $ do
           writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = smallField, player = currentPlayer}) currentField)
           changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame smallField currentPlayer)
           gameState <- checkWinHard currentPlayer allFieldIO
           case gameState of
-            Win ->  do
-              cleanHardField allFieldIO
-              when debugging $ print ("Winner is " ++ plT currentPlayer)
-              --winWidget (field $ allField !! currentBtn) currentPlayer
-            Draw -> do
-              cleanHardField allFieldIO
-              when debugging $ print "Draw"
-              --drawWidget (field $ allField !! currentBtn)
+            Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
+            Draw -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
             Game -> return ()
    where
      checkTypeOfGame x y
@@ -192,7 +180,7 @@ createMainMenu windowC = do
   let bigButtonWidth = 300
   let bigButtonHeight = 100
   --MAINMENUCONTS
-  
+
   window <- windowNew
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
@@ -207,7 +195,7 @@ createMainMenu windowC = do
                       {
                         cellSize = 50,
                         cntInRow = cellsCount,
-                        cellToWin = cellsToWin 
+                        cellToWin = cellsToWin
                       },
                     mainWindow = window,
                     packs = mainframe
@@ -231,7 +219,7 @@ createMainMenu windowC = do
   setCallback simplePVPMode (startGameMode mainWindow runSimpleXOPVP)
   setCallback simplePVEMode (startGameMode mainWindow runSimpleXOPVE)
   setCallback hardPVPMode (startGameMode mainWindow runHardXOPVP)
-  setCallback settingButton (\_ -> settingsScreen mainWindow cellsToWin cellsCount)
+  setCallback settingButton (\_ -> settingsScreen mainWindow cellsToWin cellsCount createMainMenu)
 
   mainMenu mainWindow
   FL.run

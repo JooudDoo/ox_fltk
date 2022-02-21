@@ -24,6 +24,10 @@ gState Draw Game = Draw
 gState _ Win = Win
 gState Game Draw = Draw
 gState _ _ = Game
+gSt :: GameState -> String
+gSt Win = "Win"
+gSt Draw = "Draw"
+gSt _ = "Undefined"
 
 
 data Player = Cross | Zero | NaP deriving (Eq,Show)

@@ -7,20 +7,20 @@ import qualified Graphics.UI.FLTK.LowLevel.FL as FL
 import Graphics.UI.FLTK.LowLevel.Fl_Types
 import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Graphics.UI.FLTK.LowLevel.Fl_Enumerations
-import Control.Monad
+import Data.Maybe
 import Data.IORef
-import Data.Either
+import Control.Monad
 import qualified Data.ByteString as B
 import Data.Text (pack, Text)
 
 --Дополнительные функции для интерефейса тут
---Сделать проверку на меньшие поля в большом поле
 
 data WindowConfig =
     WC
     {
         width :: Int,
-        height :: Int
+        height :: Int,
+        fullscreen :: Bool
     }
 data CellsConfig =
     CC
@@ -29,45 +29,44 @@ data CellsConfig =
         cntInRow :: IORef Int,
         cellToWin :: IORef Int
     }
-
 data MainGUI =
-  MG
-  {
-    cllsCnf :: CellsConfig,
-    windCnf :: WindowConfig,
-    mainWindow :: Ref Window,
-    packs :: Ref Group
-  }
+    MG
+    {
+      cllsCnf :: CellsConfig,
+      windCnf :: WindowConfig,
+      mainWindow :: Ref Window,
+      packs :: Ref Group
+    }
 data HardField =
-  HF
-  {
-    field ::[Ref Button],
-    state :: GameState,
-    player :: Player
-  }
+    HF
+    {
+      field ::[Ref Button],
+      state :: GameState,
+      player :: Player
+    }
 data SimpleField =
-  SF
-  {
-    fieldBtns :: [Ref Button],
-    labelInfo :: Ref Box,
-    rowCnt :: Int,
-    group :: Ref Group
-  }
+    SF
+    {
+      fieldBtns :: [Ref Button],
+      labelInfo :: Ref Box,
+      rowCnt :: Int,
+      group :: Ref Group
+    }
+
 type FieldNumber = Int
 type ButtonNumber = Int
-
 data ButtonData =
-  BD
-  {
-    fieldN :: FieldNumber,
-    btnN :: ButtonNumber
-  }
+    BD
+    {
+      fieldN :: FieldNumber,
+      btnN :: ButtonNumber
+    }
 data SettingsData =
-  SD
-  {
-    cellsToWin :: IORef Int,
-    cellsInField :: IORef Int
-  }
+    SD
+    {
+      cellsToWin :: IORef Int,
+      cellsInField :: IORef Int
+    }
 
 
 
@@ -133,16 +132,16 @@ changeButtonBlockColor btns pl = mapM_ helper btns
       showWidget b'
 
 
-settingsScreen :: MainGUI -> IORef Int -> IORef Int -> IO ()
-settingsScreen gui cellsToWin cellsCount = do
+settingsScreen :: MainGUI -> IORef Int -> IORef Int -> (WindowConfig -> IO()) -> IO ()
+settingsScreen gui cellsToWin cellsCount createWin = do
      let winWidth  = width (windCnf gui) `div` 2
      let winHeight = height (windCnf gui) `div` 4 *3
      minCells <- newIORef 3
      maxCells <- newIORef 8
      cellTOWin <-readIORef cellsToWin
      cellCount <- readIORef cellsCount
-     let textcntCells = "Count of cells in field: "
-     let textcntToWinCells = "Count of cells to win: "
+     let textcntCells = "Count of cells in row: "
+     let textcntToWinCells = "\nCount of cells in row to win: "
 
      win <- overlayWindowNew (Size (Width winWidth) (Height winHeight))
                               Nothing
@@ -153,16 +152,27 @@ settingsScreen gui cellsToWin cellsCount = do
      showWidget win
      begin win
 
-     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ "\nCount cells to win in row: " ++ show cellTOWin)
+     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ textcntToWinCells ++ show cellTOWin)
      addCntCells <- newButton 260 30 20 20 (Just "+")
      decCntCells <- newButton 260 50 20 20 (Just "-")
+
+--Сделать режим полного окна
+     unless (fullscreen $ windCnf gui) $ do
+        applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
+        winWidthSlider <- horSliderNew (toRectangle (80, 120, 100, 30)) (Just "Width")
+        bounds winWidthSlider 600 1600
+        setValue winWidthSlider (fromIntegral $ width (windCnf gui))
+        winheightSlider <- horSliderNew (toRectangle (80, 180, 100, 30)) (Just "Height")
+        bounds winheightSlider 500 1000
+        setValue winheightSlider (fromIntegral $ height (windCnf gui))
+        setCallback applyButton (applySettings (winWidthSlider,winheightSlider) win)
 
      setLabelsize decCntCells (FontSize 10)
      setLabelsize addCntCells (FontSize 10)
      setLabelsize cntCells (FontSize 16)
 
-     setCallback decCntCells (decCells textcntCells minCells cellsCount cntCells)
-     setCallback addCntCells (addCells textcntCells maxCells cellsCount cntCells)
+     setCallback decCntCells (decCells (textcntCells : [textcntToWinCells]) minCells cellsCount cntCells)
+     setCallback addCntCells (addCells (textcntCells : [textcntToWinCells]) maxCells cellsCount cntCells)
 
      exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
      setCallback exitButton (closeWin win)
@@ -174,24 +184,32 @@ settingsScreen gui cellsToWin cellsCount = do
       winFunc = hide
       closeWin :: Ref OverlayWindow -> Ref Button -> IO ()
       closeWin win b' = destroy win
+      applySettings :: (Ref HorSlider,Ref HorSlider) -> Ref OverlayWindow -> Ref Button -> IO ()
+      applySettings (sliderX,sliderY) win _ = do
+        x <- getValue sliderX
+        y <- getValue sliderY
+        destroy win
+        destroy (mainWindow gui)
+        createWin (WC {width=floor x, height=floor y, fullscreen = (fullscreen $ windCnf gui)})
+        return ()
 
-      decCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
+      decCells :: [String] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
       decCells txt min cnt label _ = do
         cnt' <- readIORef cnt
         minC <- readIORef min
         when (cnt' > minC) $ do
           writeIORef cnt (cnt'-2)
           writeIORef cellsToWin (cellToWinCoef !! (cnt'-2))
-          setLabel label (pack $ txt ++ show (cnt'-2) ++ "\nCount cells to win in row: " ++ show (cellToWinCoef !! (cnt'-2)))
+          setLabel label (pack $ head txt ++ show (cnt'-2) ++ txt !! 1++ show (cellToWinCoef !! (cnt'-2)))
           updateWid label
-      addCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
+      addCells :: [String] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
       addCells txt max cnt label _ = do
         cnt' <- readIORef cnt
         maxC <- readIORef max
         when (cnt' < maxC) $ do
           modifyIORef cnt (+2)
           writeIORef cellsToWin (cellToWinCoef !! (cnt'+2))
-          setLabel label (pack $ txt ++ show (cnt'+2) ++ "\nCount cells to win in row: " ++ show (cellToWinCoef !! (cnt'+2)))
+          setLabel label (pack $ head txt ++ show (cnt'+2) ++ txt !! 1 ++ show (cellToWinCoef !! (cnt'+2)))
           updateWid label
       updateWid :: Ref Box -> IO ()
       updateWid widg = hide widg >> showWidget widg
@@ -205,19 +223,63 @@ activateField :: [Ref Button] -> IO ()
 activateField = mapM_ activate
 
 
-readCells :: [Ref Button] -> Int -> IO [Player]
+readCells :: [Ref Button] -> Int -> IO [[Player]]
 readCells cellList inRow = do
   fieldIO <- newIORef ([] :: [Player])
   mapM_ (getLabel >=> (\d -> modifyIORef fieldIO (++ [pl d]))) cellList
-  readIORef fieldIO
+  readIORef fieldIO >>= \s -> return (refactorList s inRow)
 
-
-checkDraw :: [Player] -> GameState
+checkDraw :: [[Player]] -> GameState
 checkDraw field
   | cntNaPs == 0 = Draw
   | otherwise = Game
   where
-    cntNaPs = length $ filter (==NaP) field
+    cntNaPs = length $ filter (==NaP) $ mergeList field
+
+
+--TODO 
+--Отдельным блоком ✓
+--Возможность контролировать весь интерфейс ✓ 
+--Красиво и нарядно (30%)
+--Обьединить блоки и сделать их универсальными ✓
+endGameScreen :: MainGUI -> Maybe SimpleField -> Maybe (IORef [HardField]) -> Player -> GameState -> IO ()
+endGameScreen gui simplField hrdField player gstate = do
+  when debugging $ print ("State: " ++ gSt gstate ++ plT player)
+  when (isJust simplField) (cleanAllCells (fieldBtns (fromJust simplField)))
+  forM_ hrdField cleanHardField
+  overlayScreen gui player gstate
+  where
+      overlayScreen :: MainGUI -> Player -> GameState -> IO ()
+      overlayScreen gui player gstate = do
+        win <- overlayWindowNew (Size (Width $ width (windCnf gui) `div` 2) (Height $ height (windCnf gui) `div` 4))
+                                  Nothing
+                                  Nothing
+                                  winFunc
+        setModal win
+        clearBorder win
+        begin win
+        let text   | gstate == Draw = "DRAW"
+                   | otherwise = "Winner is " ++ plT player
+        infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                                10
+                                (width (windCnf gui) `div` 3)
+                                (height (windCnf gui) `div` 10)
+                                (Just $ pack text) --Переделать это окно на красиво богато
+
+        pushBtn <- newButton
+                    ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                    (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
+                    (width (windCnf gui) `div` 3)
+                    (height (windCnf gui) `div` 16)
+                    (Just "Повтор?")
+
+        setCallback pushBtn (btnFunc win)
+        showWidget win
+        end win
+      btnFunc :: Ref OverlayWindow -> Ref Button -> IO ()
+      btnFunc win b' = destroy win
+      winFunc :: Ref OverlayWindow -> IO ()
+      winFunc win = destroy win
 
 
 cleanAllCells :: [Ref Button] -> IO ()
@@ -241,115 +303,28 @@ cleanHardField fieldIO = do
      activate s))
 
 
---TODO 
---Отдельным блоком ✓
---Возможность контролировать весь интерфейс ✓ 
---Красиво и нарядно (30%)
---Обьединить блоки и сделать их универсальными\\//
-winWidget :: MainGUI -> SimpleField -> Player -> IO ()
-winWidget gui field player = do
-  when debugging $ print ("Winner is " ++ plT player)
-  cleanAllCells (fieldBtns field)
-  winWindow gui field player
-  where
-    winWindow :: MainGUI -> SimpleField -> Player -> IO ()
-    winWindow gui field player = do
-     win <- overlayWindowNew (Size (Width $ width (windCnf gui) `div` 2) (Height $ height (windCnf gui) `div` 4))
-                              Nothing
-                              Nothing
-                              (winFunc field)
-     setModal win
-     clearBorder win
-     begin win
-     infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                             10
-                             (width (windCnf gui) `div` 3)
-                             (height (windCnf gui) `div` 10)
-                             (Just $ pack $ "Winner is " ++ plT player) --Переделать это окно на красиво богато
-
-     pushBtn <- newButton
-                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
-                (width (windCnf gui) `div` 3)
-                (height (windCnf gui) `div` 16)
-                (Just "Повтор?")
-
-     setCallback pushBtn (btnFunc win)
-     showWidget win
-     end win
-
-     return ()
-    btnFunc :: Ref OverlayWindow -> Ref Button -> IO ()
-    btnFunc win b' = destroy win
-    winFunc :: SimpleField -> Ref OverlayWindow -> IO ()
-    winFunc field win = activate (group field)
-
-
---TODO 
---Отдельным блоком ✓
---Возможность контролировать весь интерфейс ✓
---Красиво и нарядно (30%)
---Обьединить блоки и сделать их универсальными\\//
-drawWidget :: MainGUI -> SimpleField -> IO ()
-drawWidget gui field = do
-  when debugging $ print "DRAW"
-  cleanAllCells (fieldBtns field)
-  drawWindow gui field
-  where
-    drawWindow :: MainGUI -> SimpleField -> IO ()
-    drawWindow gui field = do
-     win <- overlayWindowNew (Size (Width $ width (windCnf gui) `div` 2) (Height $ height (windCnf gui) `div` 4))
-                              Nothing
-                              Nothing
-                              (winFunc field)
-     setModal win
-     clearBorder win
-     begin win
-     infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                             10
-                             (width (windCnf gui) `div` 3)
-                             (height (windCnf gui) `div` 10)
-                             (Just "Draw") --Переделать это окно на красиво богато
-
-     pushBtn <- newButton
-                ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
-                (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
-                (width (windCnf gui) `div` 3)
-                (height (windCnf gui) `div` 16)
-                (Just "Повтор?")
-     setCallback pushBtn (btnFunc win)
-     showWidget win
-     end win
-
-     return ()
-    btnFunc :: Ref OverlayWindow -> Ref Button -> IO ()
-    btnFunc win b' = destroy win
-    winFunc :: SimpleField -> Ref OverlayWindow -> IO ()
-    winFunc field win = activate (group field)
-
-
 checkWinSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
 checkWinSimple player block row btnLst = do
    field <- readCells btnLst row
-   playerIsWin <- checkWinPlCustom (refactorList field row) row block player
-   when debugging $ print $ refactorList field row
+   playerIsWin <- checkWinPlCustom field row block player
+   when debugging $ print field
    return $ gState playerIsWin (checkDraw field)
 
 
 checkWinHard :: Player -> IORef [HardField] -> IO GameState
 checkWinHard playerCur fieldIO = do
    field <- readIORef fieldIO
-   fieldBig <- newIORef ([] :: [Player])
+   fieldBigIO <- newIORef ([] :: [Player])
    forM_ [0..length field -1] $ \i ->
      if state (field !! i) == Win
        then
-         modifyIORef fieldBig (++[player (field !! i)])
+         modifyIORef fieldBigIO (++[player (field !! i)])
         else
-         modifyIORef fieldBig (++[NaP])
-   fieldW <- readIORef fieldBig
-   playerIsWin <- checkWinPlCustom (refactorList fieldW 3) 3 3 playerCur
-   when debugging $ print $ "BIG" ++ show(refactorList fieldW 3)
-   return $ gState playerIsWin (checkDraw fieldW)
+         modifyIORef fieldBigIO (++[NaP])
+   fieldBig <- readIORef fieldBigIO >>= \s -> return $ refactorList s 3
+   playerIsWin <- checkWinPlCustom fieldBig 3 3 playerCur
+   when debugging $ print $ "BIG" ++ show fieldBig
+   return $ gState playerIsWin (checkDraw fieldBig)
 
 
 --Больше тестов возможны ошибки
@@ -444,7 +419,7 @@ createGameCells frame gui lb func = do
  mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize = (cellSize $cllsCnf gui)
+   buttonSize = cellSize $cllsCnf gui
    windowWidth = width $ windCnf gui
    windowHeight = height $ windCnf gui
 
