@@ -199,7 +199,6 @@ createMainMenu windowC = do
           (Just "Main Menu")
   begin window
   backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
-  settingButton <- newButton (width windowC-20) 0 20 20 Nothing
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
   let mainWindow = MG
                   {
@@ -215,6 +214,7 @@ createMainMenu windowC = do
                   }
 
   begin mainframe
+  settingButton <- newButton (width windowC-20) 0 20 20 Nothing
   simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4) bigButtonWidth bigButtonHeight Nothing
   simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
   hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing

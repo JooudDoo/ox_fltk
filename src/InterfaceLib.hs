@@ -153,9 +153,9 @@ settingsScreen gui cellsToWin cellsCount = do
      showWidget win
      begin win
 
-     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount)
-     addCntCells <- newButton 230 30 20 20 (Just "+")
-     decCntCells <- newButton 230 50 20 20 (Just "-")
+     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ "\nCount cells to win in row: " ++ show cellTOWin)
+     addCntCells <- newButton 260 30 20 20 (Just "+")
+     decCntCells <- newButton 260 50 20 20 (Just "-")
 
      setLabelsize decCntCells (FontSize 10)
      setLabelsize addCntCells (FontSize 10)
@@ -182,7 +182,7 @@ settingsScreen gui cellsToWin cellsCount = do
         when (cnt' > minC) $ do
           writeIORef cnt (cnt'-2)
           writeIORef cellsToWin (cellToWinCoef !! (cnt'-2))
-          setLabel label (pack $ txt ++ show (cnt'-2))
+          setLabel label (pack $ txt ++ show (cnt'-2) ++ "\nCount cells to win in row: " ++ show (cellToWinCoef !! (cnt'-2)))
           updateWid label
       addCells :: [Char] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
       addCells txt max cnt label _ = do
@@ -191,7 +191,7 @@ settingsScreen gui cellsToWin cellsCount = do
         when (cnt' < maxC) $ do
           modifyIORef cnt (+2)
           writeIORef cellsToWin (cellToWinCoef !! (cnt'+2))
-          setLabel label (pack $ txt ++ show (cnt'+2))
+          setLabel label (pack $ txt ++ show (cnt'+2) ++ "\nCount cells to win in row: " ++ show (cellToWinCoef !! (cnt'+2)))
           updateWid label
       updateWid :: Ref Box -> IO ()
       updateWid widg = hide widg >> showWidget widg
@@ -444,7 +444,7 @@ createGameCells frame gui lb func = do
  mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize = cellSize $cllsCnf gui
+   buttonSize = (cellSize $cllsCnf gui)
    windowWidth = width $ windCnf gui
    windowHeight = height $ windCnf gui
 
