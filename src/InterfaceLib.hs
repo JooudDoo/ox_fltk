@@ -155,24 +155,29 @@ settingsScreen gui cellsToWin cellsCount createWin = do
      cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ textcntToWinCells ++ show cellTOWin)
      addCntCells <- newButton 260 30 20 20 (Just "+")
      decCntCells <- newButton 260 50 20 20 (Just "-")
-
+     fullscreenButton <- roundButtonNew (toRectangle (80,90,100,20)) (Just "Fullscreen")
+     setValue fullscreenButton (fullscreen $ windCnf gui)
+     applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
+     destroyButton <- newButton 0 (winHeight-20) 40 20 (Just "EXIT")
 --Сделать режим полного окна
+     setCallback applyButton (applySettings Nothing Nothing fullscreenButton win)
      unless (fullscreen $ windCnf gui) $ do
-        applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
         winWidthSlider <- horSliderNew (toRectangle (80, 120, 100, 30)) (Just "Width")
         bounds winWidthSlider 600 1600
         setValue winWidthSlider (fromIntegral $ width (windCnf gui))
         winheightSlider <- horSliderNew (toRectangle (80, 180, 100, 30)) (Just "Height")
         bounds winheightSlider 500 1000
         setValue winheightSlider (fromIntegral $ height (windCnf gui))
-        setCallback applyButton (applySettings (winWidthSlider,winheightSlider) win)
-
+        setCallback applyButton (applySettings (Just winWidthSlider) (Just winheightSlider) fullscreenButton win)
+      
+    
      setLabelsize decCntCells (FontSize 10)
      setLabelsize addCntCells (FontSize 10)
      setLabelsize cntCells (FontSize 16)
 
      setCallback decCntCells (decCells (textcntCells : [textcntToWinCells]) minCells cellsCount cntCells)
      setCallback addCntCells (addCells (textcntCells : [textcntToWinCells]) maxCells cellsCount cntCells)
+     setCallback destroyButton (destroyApp win)
 
      exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
      setCallback exitButton (closeWin win)
@@ -184,15 +189,28 @@ settingsScreen gui cellsToWin cellsCount createWin = do
       winFunc = hide
       closeWin :: Ref OverlayWindow -> Ref Button -> IO ()
       closeWin win b' = destroy win
-      applySettings :: (Ref HorSlider,Ref HorSlider) -> Ref OverlayWindow -> Ref Button -> IO ()
-      applySettings (sliderX,sliderY) win _ = do
-        x <- getValue sliderX
-        y <- getValue sliderY
+      applySettings :: Maybe (Ref HorSlider) -> Maybe (Ref HorSlider) -> Ref RoundButton -> Ref OverlayWindow -> Ref Button -> IO ()
+      applySettings sliderX sliderY fullB win _ = do
         destroy win
         destroy (mainWindow gui)
-        createWin (WC {width=floor x, height=floor y, fullscreen = (fullscreen $ windCnf gui)})
+        fullS <- getValue fullB
+        if fullS then do
+          newX <- FL.w
+          newY <- FL.h
+          createWin (WC {width=newX, height=newY, fullscreen = fullS})
+        else
+          if (isNothing sliderX)
+            then
+              createWin (WC {width=1200, height=600, fullscreen = False})
+            else do
+              x <- getValue (fromJust sliderX)
+              y <- getValue (fromJust sliderY)
+              createWin (WC {width=floor x, height=floor y, fullscreen = False})
         return ()
-
+      destroyApp :: Ref OverlayWindow -> Ref Button -> IO ()
+      destroyApp winX _ = do
+        destroy winX
+        destroy (mainWindow gui)
       decCells :: [String] -> IORef Int -> IORef Int -> Ref Box -> Ref Button -> IO ()
       decCells txt min cnt label _ = do
         cnt' <- readIORef cnt

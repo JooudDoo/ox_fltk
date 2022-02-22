@@ -185,6 +185,7 @@ createMainMenu windowC = do
           (Size (Width $ width windowC) (Height $ height windowC))
           Nothing
           (Just "Main Menu")
+  when (fullscreen windowC) $ do makeFullscreen window
   begin window
   backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
