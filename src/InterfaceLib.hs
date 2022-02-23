@@ -474,7 +474,7 @@ createHardCellsField gui field = do
       modifyIORef lstButtonsIO (++[b'])
   readIORef lstButtonsIO
   where
-    buttonSize = (((heightW -150) `div` 3) *2) `div` 9
+    buttonSize = (((heightW -151) `div` 3) *2) `div` 9
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
     padX i = winPadX + (field-1)`mod`3 * 3 * buttonSize + buttonSize * i + 10 * ((field-1) `mod` 3)
