@@ -152,25 +152,27 @@ settingsScreen gui cellsToWin cellsCount createWin = do
      showWidget win
      begin win
 
+     applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
+     destroyButton <- newButton 0 (winHeight-20) 40 20 (Just "EXIT")
+     exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
+
      cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ textcntToWinCells ++ show cellTOWin)
      addCntCells <- newButton 260 30 20 20 (Just "+")
      decCntCells <- newButton 260 50 20 20 (Just "-")
-     fullscreenButton <- roundButtonNew (toRectangle (80,90,100,20)) (Just "Fullscreen")
+
+     fullscreenButton <- roundButtonNew (toRectangle (30,90,100,20)) (Just "Fullscreen")
      setValue fullscreenButton (fullscreen $ windCnf gui)
-     applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
-     destroyButton <- newButton 0 (winHeight-20) 40 20 (Just "EXIT")
---Сделать режим полного окна
      setCallback applyButton (applySettings Nothing Nothing fullscreenButton win)
-     unless (fullscreen $ windCnf gui) $ do
-        winWidthSlider <- horSliderNew (toRectangle (80, 120, 100, 30)) (Just "Width")
-        bounds winWidthSlider 600 1600
-        setValue winWidthSlider (fromIntegral $ width (windCnf gui))
-        winheightSlider <- horSliderNew (toRectangle (80, 180, 100, 30)) (Just "Height")
-        bounds winheightSlider 500 1000
-        setValue winheightSlider (fromIntegral $ height (windCnf gui))
-        setCallback applyButton (applySettings (Just winWidthSlider) (Just winheightSlider) fullscreenButton win)
-      
-    
+     when debugging $
+      unless (fullscreen $ windCnf gui) $ do
+          winWidthSlider <- horSliderNew (toRectangle (130, 90, 100, 30)) (Just "Width")
+          bounds winWidthSlider 600 1600
+          setValue winWidthSlider (fromIntegral $ width (windCnf gui))
+          winheightSlider <- horSliderNew (toRectangle (130, 140, 100, 30)) (Just "Height")
+          bounds winheightSlider 500 1000
+          setValue winheightSlider (fromIntegral $ height (windCnf gui))
+          setCallback applyButton (applySettings (Just winWidthSlider) (Just winheightSlider) fullscreenButton win)
+
      setLabelsize decCntCells (FontSize 10)
      setLabelsize addCntCells (FontSize 10)
      setLabelsize cntCells (FontSize 16)
@@ -179,7 +181,6 @@ settingsScreen gui cellsToWin cellsCount createWin = do
      setCallback addCntCells (addCells (textcntCells : [textcntToWinCells]) maxCells cellsCount cntCells)
      setCallback destroyButton (destroyApp win)
 
-     exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
      setCallback exitButton (closeWin win)
      end win
      return ()
@@ -195,13 +196,15 @@ settingsScreen gui cellsToWin cellsCount createWin = do
         destroy (mainWindow gui)
         fullS <- getValue fullB
         if fullS then do
+          x1 <- FL.x
+          y1 <- FL.y
           newX <- FL.w
           newY <- FL.h
-          createWin (WC {width=newX, height=newY, fullscreen = fullS})
+          createWin (WC {width=newX+x1, height=newY+y1, fullscreen = fullS})
         else
-          if (isNothing sliderX)
+          if isNothing sliderX
             then
-              createWin (WC {width=1200, height=600, fullscreen = False})
+              createWin (WC {width=800, height=600, fullscreen = False})
             else do
               x <- getValue (fromJust sliderX)
               y <- getValue (fromJust sliderY)
@@ -427,17 +430,17 @@ createGameCells frame gui lb func = do
  lstButtonsIO <- newIORef ([] :: [Ref Button])
  inRow <- readIORef $ cntInRow $ cllsCnf gui
  player <- newIORef Cross
- let padX = (windowWidth - buttonSize * inRow) `div` 2
- let padY = (windowHeight - buttonSize * inRow) `div` 2
+ let padX = (windowWidth - buttonSize inRow * inRow) `div` 2
+ let padY = (windowHeight - buttonSize inRow * inRow) `div` 2
  forM_ [0..inRow*inRow-1] $ \i -> do
-    button <- newButton (i `mod` inRow*buttonSize + padX) (i `div` inRow*buttonSize + padY) buttonSize buttonSize (Just "")
-    setLabelsize button (FontSize (fromIntegral $ buttonSize`div`2))
+    button <- newButton (i `mod` inRow*buttonSize inRow + padX) (i `div` inRow*buttonSize inRow + padY) (buttonSize inRow) (buttonSize inRow) (Just "")
+    setLabelsize button (FontSize (fromIntegral $ buttonSize inRow`div`2))
     modifyIORef lstButtonsIO (++ [button])
  lstButtons <- readIORef lstButtonsIO
  mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize = cellSize $cllsCnf gui
+   buttonSize r = (((windowHeight -200) `div` 3) *2) `div` r
    windowWidth = width $ windCnf gui
    windowHeight = height $ windCnf gui
 
@@ -466,17 +469,18 @@ createHardCellsField gui field = do
   lstButtonsIO <- newIORef ([] :: [Ref Button])
   forM_ [0..2] $ \i ->
     forM_ [0..2] $ \d -> do
-      b' <- newButton (padX d) (padY i) (cellSize $ cllsCnf gui) (cellSize $ cllsCnf gui) (Just "")
-      setLabelsize b' (FontSize (fromIntegral $ cellSize (cllsCnf gui) `div`2))
+      b' <- newButton (padX d) (padY i) buttonSize buttonSize (Just "")
+      setLabelsize b' (FontSize (fromIntegral $ buttonSize `div`2))
       modifyIORef lstButtonsIO (++[b'])
   readIORef lstButtonsIO
   where
+    buttonSize = (((heightW -150) `div` 3) *2) `div` 9
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
-    padX i = winPadX + (field-1)`mod`3 * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1) `mod` 3)
-    padY i= winPadY + (field-1)`div`3 * 3 * cellSize (cllsCnf gui) + cellSize (cllsCnf gui) * i + 10 * ((field-1)`div`3)
-    winPadX = (widthW  - cellSize (cllsCnf gui) * 9) `div` 2
-    winPadY = (heightW - cellSize (cllsCnf gui) * 9) `div` 2
+    padX i = winPadX + (field-1)`mod`3 * 3 * buttonSize + buttonSize * i + 10 * ((field-1) `mod` 3)
+    padY i= winPadY + (field-1)`div`3 * 3 * buttonSize + buttonSize * i + 10 * ((field-1)`div`3)
+    winPadX = (widthW  - buttonSize * 9) `div` 2
+    winPadY = (heightW - buttonSize * 9) `div` 2
 
 
 updateHardCellsFunc :: IORef [HardField] -> [Ref Button] -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> FieldNumber -> IORef Player -> MainGUI -> IO ()
