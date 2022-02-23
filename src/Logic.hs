@@ -7,6 +7,14 @@ import InterfaceLib
 import System.Random
 --Тут хранится разум бота
 
+{-callForBot :: [[Player]] -> Player -> IO (Int, Int)
+callForBot field player = do
+    let listOfKey = dropWhile (\(r,c) ->  field !!( abs r `mod` length (head field) ) !! ( abs c `mod` length (head field) ) /= NaP) 
+        [(i, j) | i <- [0..length (head field) - 1], j <- [0..length (head field) - 1]] 
+-}
+
+    
+
 callForBotRandom :: [[Player]] -> Player -> IO (Int, Int)
 callForBotRandom field player = do
     seedRow <- newStdGen
