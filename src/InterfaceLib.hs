@@ -262,13 +262,12 @@ updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallF
   | currentSmallFieldState /= Game && state (allField !! currentField) == Game = do
       writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer}) currentField)
       changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame currentSmallFieldState currentPlayer)
-      checkWinHard currentPlayer allFieldIO
+      checkWinRAWHard currentPlayer allFieldIO
   | otherwise = return Game
     where
      checkTypeOfGame x y
       | x == Draw = NaP
       | otherwise = y
-
 
 
 deactivateField :: [Ref Button] -> IO ()
@@ -361,22 +360,19 @@ checkDrawSimple field
   | otherwise = Game
 
 
-checkDrawHard :: [HardField] -> GameState
+checkDrawHard :: [GameState] -> GameState
 checkDrawHard field
-  | not (any (\s -> state s /= Game) field) = Draw
+  | not (any (/= Game) field) = Draw
   | otherwise  = Game
 
 
-checkWinSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
-checkWinSimple player block row btnLst = do
-   field <- readCells btnLst row
-   playerIsWin <- checkWinPlCustom field row block player
-   when interfaceDebugging $ print field
-   return $ gState playerIsWin (checkDrawSimple field)
+checkWinRAWSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
+checkWinRAWSimple player block row btnLst = do
+  readCells btnLst row >>= checkWinSimple player block row
 
 
-checkWinHard :: Player -> IORef [HardField] -> IO GameState
-checkWinHard playerCur fieldIO = do
+checkWinRAWHard :: Player -> IORef [HardField] -> IO GameState
+checkWinRAWHard playerCur fieldIO = do
    field <- readIORef fieldIO
    fieldBigIO <- newIORef ([] :: [Player])
    forM_ [0..length field -1] $ \i ->
@@ -385,10 +381,24 @@ checkWinHard playerCur fieldIO = do
          modifyIORef fieldBigIO (++[player (field !! i)])
         else
          modifyIORef fieldBigIO (++[NaP])
-   fieldBig <- readIORef fieldBigIO >>= \s -> return $ refactorList s 3
-   playerIsWin <- checkWinPlCustom fieldBig 3 3 playerCur
-   when interfaceDebugging $ print $ "BIG" ++ show (gState playerIsWin (checkDrawHard field))
-   return $ gState Game (checkDrawHard field)
+   fieldNIO <-readIORef fieldBigIO
+   checkWinHard playerCur (refactorHardField field)
+
+
+checkWinSimple :: Player -> Int -> Int -> [[Player]] -> IO GameState
+checkWinSimple player block row field = do
+   playerIsWin <- checkWinPlCustom field row block player
+   when interfaceDebugging $ print field
+   return $ gState playerIsWin (checkDrawSimple field)
+
+
+checkWinHard :: Player -> [HardPlayers] -> IO GameState
+checkWinHard playerCur fieldDATA = do
+   let fieldDATAPlayers = refactorList (map playerP fieldDATA) 3
+   let fieldDATAStates = map  stateP fieldDATA
+   playerIsWin <- checkWinPlCustom fieldDATAPlayers 3 3 playerCur
+   when interfaceDebugging $ print $ "BIG " ++ show (gState playerIsWin (checkDrawHard fieldDATAStates))
+   return $ gState Game (checkDrawHard fieldDATAStates)
 
 
 --Больше тестов возможны ошибки
