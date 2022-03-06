@@ -368,7 +368,7 @@ checkDrawHard field
 
 checkWinRAWSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
 checkWinRAWSimple player block row btnLst = do
-  readCells btnLst row >>= checkWinSimple player block row
+  readCells btnLst row >>= \s -> return $ checkWinSimple player block row s
 
 
 checkWinRAWHard :: Player -> IORef [HardField] -> IO GameState
@@ -382,98 +382,82 @@ checkWinRAWHard playerCur fieldIO = do
         else
          modifyIORef fieldBigIO (++[NaP])
    fieldNIO <-readIORef fieldBigIO
-   checkWinHard playerCur (refactorHardField field)
+   return $ checkWinHard playerCur (refactorHardField field)
 
 
-checkWinSimple :: Player -> Int -> Int -> [[Player]] -> IO GameState
+checkWinSimple :: Player -> Int -> Int -> [[Player]] ->  GameState
 checkWinSimple player block row field = do
-   playerIsWin <- checkWinPlCustom field row block player
-   when interfaceDebugging $ print field
-   return $ gState playerIsWin (checkDrawSimple field)
+   let playerIsWin = checkWinPlCustom field row block player
+   gState playerIsWin (checkDrawSimple field)
 
 
-checkWinHard :: Player -> [HardPlayers] -> IO GameState
+checkWinHard :: Player -> [HardPlayers] -> GameState
 checkWinHard playerCur fieldDATA = do
    let fieldDATAPlayers = refactorList (map playerP fieldDATA) 3
    let fieldDATAStates = map  stateP fieldDATA
-   playerIsWin <- checkWinPlCustom fieldDATAPlayers 3 3 playerCur
-   when interfaceDebugging $ print $ "BIG " ++ show (gState playerIsWin (checkDrawHard fieldDATAStates))
-   return $ gState Game (checkDrawHard fieldDATAStates)
+   let playerIsWin = checkWinPlCustom fieldDATAPlayers 3 3 playerCur
+   gState Game (checkDrawHard fieldDATAStates)
 
 
---Больше тестов возможны ошибки
-checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> IO GameState
-checkWinPlCustom pole inRowIn block player = do
-  iSwin <- newIORef False
-  forM_[0..inRowIn-1] (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
-  forM_[0..inRowIn-1] $ \i -> check 0 i 1 0 >>= (\s -> modifyIORef iSwin (|| s))
-  checkDiags >>= \s -> modifyIORef iSwin (|| s)
-  iSWinFin <- readIORef iSwin
-  if iSWinFin
-    then
-      return Win
-    else
-      return Game
+checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> GameState
+checkWinPlCustom pole inRowIn block player
+          | checkSquares 0 = Win
+          | checkDiags 0 = Win
+          | otherwise = Game
   where
-    check :: Int -> Int -> Int -> Int -> IO Bool
-    check xC offX yC offY = do
-      win <- newIORef False
-      cnt <- newIORef 0
-      forM_[0..inRowIn-1] $ \i -> do
-        let x = i * xC + offX
-        let y = i * yC + offY
-        if pole !! x !! y == player
-          then
-            modifyIORef cnt (+1)
-          else
-            writeIORef cnt 0
-        cntSym <- readIORef cnt
-        when (cntSym == block) $ do
-            writeIORef win True
-            return ()
-      readIORef win
-    checkDiags :: IO Bool
-    checkDiags = do
-        win <- newIORef False
-        cnt1 <- newIORef 0
-        cnt2 <- newIORef 0
-        cnt3 <- newIORef 0
-        cnt4 <- newIORef 0
-        forM_[0..inRowIn-block] $ \offset ->
-          forM_[0..inRowIn-offset-1] $ \y -> do
-          let x1 = y + offset
-          let x2 = inRowIn-1-y-offset
-          if pole !! y !! x1 == player
-            then
-              modifyIORef cnt1 (+1)
-            else
-              writeIORef cnt1 0
-          if pole !! x1 !! y == player
-            then
-              modifyIORef cnt3 (+1)
-            else
-              writeIORef cnt3 0
-
-          if pole !! y !! x2 == player
-            then
-              modifyIORef cnt2 (+1)
-            else
-              writeIORef cnt2 0
-
-          if pole !! (y+offset) !! (x2+offset) == player
-            then
-              modifyIORef cnt4 (+1)
-            else
-              writeIORef cnt4 0
-          cntSym1 <- readIORef cnt1
-          cntSym2 <- readIORef cnt2
-          cntSym3 <- readIORef cnt3
-          cntSym4 <- readIORef cnt4
-          when (cntSym1 == block || cntSym2 == block ||
-                cntSym3 == block || cntSym4 == block) $ do
-              writeIORef win True
-              return ()
-        readIORef win
+    checkSquares cnt
+        | cnt == inRowIn = False
+        | checkR' 1 0 0 cnt 0 0 = True
+        | checkR' 0 cnt 1 0 0 0 = True
+        | otherwise = checkSquares (cnt+1)
+    checkDiags offset
+        | offset == inRowIn-block+1 = False
+        | checkD' offset 0 0 = True
+        | checkD'' offset 0 0 = True
+        | checkD''' offset 0 0 = True
+        | checkD'''' offset 0 0 = True
+        | otherwise = checkDiags (offset+1)
+    checkD' :: Int -> Int -> Int -> Bool
+    checkD' offset y cnt
+            | cnt == block = True
+            | y > inRowIn-offset-1 = False
+            | pole !! y !! x1 == player = checkD' offset (y+1) (cnt+1)
+            | otherwise = checkD' offset (y+1) 0
+      where
+        x1 = y+ offset
+    checkD'' :: Int -> Int -> Int -> Bool
+    checkD'' offset y cnt
+            | cnt == block = True
+            | y > inRowIn-offset-1 = False
+            | pole !! x1 !! y == player = checkD'' offset (y+1) (cnt+1)
+            | otherwise = checkD'' offset (y+1) 0
+      where
+        x1 = y+ offset
+    checkD''' :: Int -> Int -> Int -> Bool
+    checkD''' offset y cnt
+            | cnt == block = True
+            | y > inRowIn-offset-1 = False
+            | pole !! y !! x2 == player = checkD''' offset (y+1) (cnt+1)
+            | otherwise = checkD''' offset (y+1) 0
+      where
+        x2 = inRowIn-1-y-offset
+    checkD'''' :: Int -> Int -> Int -> Bool
+    checkD'''' offset y cnt
+            | cnt == block = True
+            | y > inRowIn-offset-1 = False
+            | pole !! (y+offset) !! (x2+offset) == player = checkD'''' offset (y+1) (cnt+1)
+            | otherwise = checkD'''' offset (y+1) 0
+      where
+        x2 = inRowIn-1-y-offset
+    checkR' :: Int -> Int -> Int -> Int -> Int -> Int -> Bool
+    checkR' xC offX yC offY cnt toWin
+            | toWin == block = True
+            | cnt == inRowIn = False
+            | pole !! x !! y == player = checkR' xC offX yC offY (cnt+1) (toWin+1)
+            | otherwise = checkR' xC offX yC offY (cnt+1) 0
+      where
+          x = cnt * xC + offX
+          y = cnt * yC + offY
 
 
 createGameCells ::Ref Group -> MainGUI -> Ref Box -> (MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO [Ref Button]
