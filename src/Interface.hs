@@ -98,6 +98,7 @@ hardCellPVE gui allFieldIO btnData pl b' = do
          (fieldB, xB, yB)  <- callForHardBotRandom (refactorHardField allField) botPlayer
          newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) pl
          currentSmallFieldState <- checkWinSimple botPlayer 3 3 (field $ allField !! fieldB)
+         switchHardFieldsState allField (BD{fieldN = fieldB, btnN =xB * 3 + yB}) currentSmallFieldState
          updateHardFieldData allFieldIO allField botPlayer fieldB currentSmallFieldState >>=
           \case
             Win -> endGameScreen gui Nothing (Just allFieldIO) botPlayer Win
