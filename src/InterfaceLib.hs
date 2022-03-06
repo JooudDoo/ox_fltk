@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+
 module InterfaceLib where
 
 import AdditionLib
@@ -9,6 +10,7 @@ import Graphics.UI.FLTK.LowLevel.FLTKHS
 import Graphics.UI.FLTK.LowLevel.Fl_Enumerations
 import Data.Maybe
 import Data.IORef
+import System.IO.Unsafe
 import Control.Monad
 import qualified Data.ByteString as B
 import Data.Text (pack, Text)
@@ -43,6 +45,13 @@ data HardField =
       field ::[Ref Button],
       state :: GameState,
       player :: Player
+    }
+data HardPlayers =
+    HP
+    {
+      fieldP ::[[Player]],
+      stateP :: GameState,
+      playerP :: Player
     }
 data SimpleField =
     SF
@@ -152,18 +161,18 @@ settingsScreen gui cellsToWin cellsCount createWin = do
      showWidget win
      begin win
 
-     applyButton <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
+     applyButton   <- newButton (winWidth-40) (winHeight-20) 40 20 (Just "Apply")
      destroyButton <- newButton 0 (winHeight-20) 40 20 (Just "EXIT")
-     exitButton <- newButton (winWidth-20) 0 20 20 (Just "X")
+     exitButton    <- newButton (winWidth-20) 0 20 20 (Just "X")
 
-     cntCells    <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ textcntToWinCells ++ show cellTOWin)
-     addCntCells <- newButton 260 30 20 20 (Just "+")
-     decCntCells <- newButton 260 50 20 20 (Just "-")
+     cntCells      <- newLabel  80 40 100 30 (Just $ pack $ textcntCells ++ show cellCount ++ textcntToWinCells ++ show cellTOWin)
+     addCntCells   <- newButton 260 30 20 20 (Just "+")
+     decCntCells   <- newButton 260 50 20 20 (Just "-")
 
      fullscreenButton <- roundButtonNew (toRectangle (30,90,100,20)) (Just "Fullscreen")
      setValue fullscreenButton (fullscreen $ windCnf gui)
      setCallback applyButton (applySettings Nothing Nothing fullscreenButton win)
-     when debugging $
+     when interfaceDebugging $
       unless (fullscreen $ windCnf gui) $ do
           winWidthSlider <- horSliderNew (toRectangle (130, 90, 100, 30)) (Just "Width")
           bounds winWidthSlider 600 1600
@@ -236,6 +245,32 @@ settingsScreen gui cellsToWin cellsCount createWin = do
       updateWid widg = hide widg >> showWidget widg
 
 
+switchHardFieldsState :: [HardField] -> ButtonData -> GameState -> IO ()
+switchHardFieldsState allField btnD gstate
+    | state (allField !! currentBtn) /= Game || gstate /= Game && currentBtn == currentField =
+                  mapM_ (activateField . field) allField
+    | otherwise = do
+                  mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
+                  activateField (field $ allField !! currentBtn)
+    where
+      currentField = fieldN btnD
+      currentBtn = btnN btnD
+
+
+updateHardFieldData :: IORef [HardField] -> [HardField] -> Player -> FieldNumber -> GameState -> IO GameState
+updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState
+  | currentSmallFieldState /= Game && state (allField !! currentField) == Game = do
+      writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer}) currentField)
+      changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame currentSmallFieldState currentPlayer)
+      checkWinHard currentPlayer allFieldIO
+  | otherwise = return Game
+    where
+     checkTypeOfGame x y
+      | x == Draw = NaP
+      | otherwise = y
+
+
+
 deactivateField :: [Ref Button] -> IO ()
 deactivateField = mapM_ deactivate
 
@@ -250,6 +285,7 @@ readCells cellList inRow = do
   mapM_ (getLabel >=> (\d -> modifyIORef fieldIO (++ [pl d]))) cellList
   readIORef fieldIO >>= \s -> return (refactorList s inRow)
 
+
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
@@ -257,7 +293,7 @@ readCells cellList inRow = do
 --Обьединить блоки и сделать их универсальными ✓
 endGameScreen :: MainGUI -> Maybe SimpleField -> Maybe (IORef [HardField]) -> Player -> GameState -> IO ()
 endGameScreen gui simplField hrdField player gstate = do
-  when debugging $ print ("State: " ++ gSt gstate ++ plT player)
+  when interfaceDebugging $ print ("State: " ++ gSt gstate ++ " " ++ plT player)
   when (isJust simplField) (cleanAllCells (fieldBtns (fromJust simplField)))
   forM_ hrdField cleanHardField
   overlayScreen gui player gstate
@@ -316,12 +352,13 @@ cleanHardField fieldIO = do
      activate s))
 
 
+refactorHardField :: [HardField] -> [HardPlayers]
+refactorHardField = map (\s -> HP {fieldP = unsafePerformIO (readCells (field s) 3), stateP = state s,playerP = player s})
+
 checkDrawSimple :: [[Player]] -> GameState
 checkDrawSimple field
-  | null cntNaPs = Draw
+  | NaP `notElem` mergeList field= Draw
   | otherwise = Game
-  where
-    cntNaPs = filter (==NaP) $ mergeList field
 
 
 checkDrawHard :: [HardField] -> GameState
@@ -334,7 +371,7 @@ checkWinSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
 checkWinSimple player block row btnLst = do
    field <- readCells btnLst row
    playerIsWin <- checkWinPlCustom field row block player
-   when debugging $ print field
+   when interfaceDebugging $ print field
    return $ gState playerIsWin (checkDrawSimple field)
 
 
@@ -350,7 +387,7 @@ checkWinHard playerCur fieldIO = do
          modifyIORef fieldBigIO (++[NaP])
    fieldBig <- readIORef fieldBigIO >>= \s -> return $ refactorList s 3
    playerIsWin <- checkWinPlCustom fieldBig 3 3 playerCur
-   when debugging $ print $ "BIG" ++ show (gState playerIsWin (checkDrawHard field))
+   when interfaceDebugging $ print $ "BIG" ++ show (gState playerIsWin (checkDrawHard field))
    return $ gState Game (checkDrawHard field)
 
 
@@ -422,7 +459,6 @@ checkWinPlCustom pole inRowIn block player = do
           cntSym2 <- readIORef cnt2
           cntSym3 <- readIORef cnt3
           cntSym4 <- readIORef cnt4
-
           when (cntSym1 == block || cntSym2 == block ||
                 cntSym3 == block || cntSym4 == block) $ do
               writeIORef win True
@@ -445,7 +481,7 @@ createGameCells frame gui lb func = do
  mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize r = (((windowHeight -200) `div` 3) *2) `div` r
+   buttonSize r = ((windowHeight -200) `div` 3) *2 `div` r
    windowWidth = width $ windCnf gui
    windowHeight = height $ windCnf gui
 
@@ -479,7 +515,7 @@ createHardCellsField gui field = do
       modifyIORef lstButtonsIO (++[b'])
   readIORef lstButtonsIO
   where
-    buttonSize = (((heightW -151) `div` 3) *2) `div` 9
+    buttonSize = ((heightW -151) `div` 3) *2 `div` 9
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
     padX i = winPadX + (field-1)`mod`3 * 3 * buttonSize + buttonSize * i + 10 * ((field-1) `mod` 3)

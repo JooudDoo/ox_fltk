@@ -14,6 +14,9 @@ import Data.IORef
 debugging :: Bool
 debugging = True
 
+interfaceDebugging :: Bool
+interfaceDebugging = True
+
 --Все дополнительные небольшие функции лежат тут
 
 

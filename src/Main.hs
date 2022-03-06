@@ -1,7 +1,7 @@
 module Main where
 
-import Interface
-import InterfaceLib
+import Interface ( createMainMenu )
+import InterfaceLib ( WindowConfig(..) )
 
 windowConfiguration :: WindowConfig 
 windowConfiguration =
@@ -12,5 +12,4 @@ windowConfiguration =
     }
 
 main :: IO ()
-main = do
-    createMainMenu windowConfiguration
+main = createMainMenu windowConfiguration

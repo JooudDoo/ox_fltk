@@ -19,6 +19,7 @@ images :: [String]
 images = ["simplePVP.png",
           "simplePVE.png",
           "hardPVP.png",
+          "hardPVE.png",
           "mainMenuBack.png"]
 
 
@@ -36,8 +37,8 @@ exitButton gui frame = do
 
 
 --Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво) | Сделать смену порядка возможной
-gameCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
-gameCellPVE gui fieldIO pla b' = do
+simpleCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
+simpleCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
   when (state == "") $ do
     let btnLst = fieldBtns fieldIO
@@ -62,8 +63,8 @@ gameCellPVE gui fieldIO pla b' = do
               Game -> return ()
 
 
-gameCellPVP :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
-gameCellPVP gui fieldIO pla b' = do
+simpleCellPVP :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
+simpleCellPVP gui fieldIO pla b' = do
   state <- getLabel b'
   when (state == "") $ do
     currentPlayer <- readIORef pla
@@ -78,88 +79,80 @@ gameCellPVP gui fieldIO pla b' = do
         Game -> return ()
 
 
+hardCellPVE :: MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()
+hardCellPVE gui allFieldIO btnData pl b' = do
+  stateB <- getLabel b'
+  when(stateB == "") $ do
+    currentPlayer <- readIORef pl
+    let currentField = fieldN btnData
+    newButtonState b' pl
+    allField <- readIORef allFieldIO
+    currentSmallFieldState <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField)
+    switchHardFieldsState allField btnData currentSmallFieldState
+    updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState >>=
+      \case
+        Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
+        Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
+        Game -> do --Добавить проверку доступности поля 
+         let botPlayer = rPl currentPlayer
+         (fieldB, xB, yB)  <- callForHardBotRandom (refactorHardField allField) botPlayer
+         newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) pl
+         currentSmallFieldState <- checkWinSimple botPlayer 3 3 (field $ allField !! fieldB)
+         updateHardFieldData allFieldIO allField botPlayer fieldB currentSmallFieldState >>=
+          \case
+            Win -> endGameScreen gui Nothing (Just allFieldIO) botPlayer Win
+            Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
+            Game -> return ()
+
+
 hardCellPVP :: MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()
 hardCellPVP gui allFieldIO btnData pl b' = do
   stateB <- getLabel b'
-  currentPlayer <- readIORef pl
   when(stateB == "") $ do
+    currentPlayer <- readIORef pl
     let currentField = fieldN btnData
-    let currentBtn = btnN btnData
     newButtonState b' pl
-
     allField <- readIORef allFieldIO
-    smallField <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField)
+    currentSmallFieldState <- checkWinSimple currentPlayer 3 3 (field $ allField !! currentField)
 
-    if (state (allField !! currentBtn) /= Game) || (smallField /= Game && currentBtn == currentField)
-      then
-        mapM_ (activateField . field) allField
-      else do
-        mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
-        activateField (field $ allField !! currentBtn)
+    switchHardFieldsState allField btnData currentSmallFieldState
 
-    when (smallField /= Game && state (allField !! currentField) == Game) $ do
-          writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = smallField, player = currentPlayer}) currentField)
-          changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame smallField currentPlayer)
-          gameState <- checkWinHard currentPlayer allFieldIO
-          case gameState of
-            Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
-            Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
-            Game -> return ()
-   where
-     checkTypeOfGame x y
-      | x == Draw = NaP
-      | otherwise = y
+    updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState >>=
+      \case
+        Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
+        Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
+        Game -> return ()
 
 
-runHardXOPVP :: MainGUI -> IO ()
-runHardXOPVP gui = do
-  setLabel (mainWindow gui) "Hard XO PVP"
-  begin $ mainWindow gui
-
-  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
-  begin mainframe
-  _ <- createHardCells gui hardCellPVP
-  exitButton gui mainframe
-
-  end mainframe
-  end $ mainWindow gui
-
-
---Обьединить функции запуска простых режимов в один
-runSimpleXOPVE :: MainGUI -> IO ()
-runSimpleXOPVE gui = do
-  setLabel (mainWindow gui) "Simple XO PVE"
-  begin $ mainWindow gui
-
-  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
-  begin mainframe
-  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello human") --Переделать это окно на красиво богато
-  _ <- createGameCells mainframe gui infoLabel gameCellPVE
-  exitButton gui mainframe
-
-  end mainframe
-  end $ mainWindow gui
-
-
-runSimpleXOPVP :: MainGUI -> IO ()
-runSimpleXOPVP gui = do
-  setLabel (mainWindow gui) "Simple XO PVP"
-  begin $ mainWindow gui
-
-  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
-  begin mainframe
-  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello human") --Переделать это окно на красиво богато
-  _ <- createGameCells mainframe gui infoLabel gameCellPVP
-  exitButton gui mainframe
-
-  end mainframe
-  end $ mainWindow gui
-
-
-startGameMode :: MainGUI -> (MainGUI -> IO ()) -> Ref a -> IO ()
-startGameMode gui func _ = do
+runHardMode :: MainGUI -> Text -> (MainGUI -> IORef [HardField] -> ButtonData -> IORef Player -> Ref Button -> IO ()) -> IO ()
+runHardMode gui windowName gameMode = do
   hide $ packs gui
-  func gui
+  setLabel (mainWindow gui) windowName
+  begin $ mainWindow gui
+
+  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin mainframe
+  _ <- createHardCells gui gameMode
+  exitButton gui mainframe
+
+  end mainframe
+  end $ mainWindow gui
+
+
+runSimpleMode :: MainGUI -> Text -> (MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()) -> IO ()
+runSimpleMode gui windowName gameMode = do
+  hide $ packs gui
+  setLabel (mainWindow gui) windowName
+  begin $ mainWindow gui
+
+  mainframe <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin mainframe
+  infoLabel  <- newLabel (width (windCnf gui) `div` 4) 10 (width (windCnf gui) `div` 5) 70 (Just "Hello human") --Переделать это окно на красиво богато
+  _ <- createGameCells mainframe gui infoLabel gameMode
+  exitButton gui mainframe
+
+  end mainframe
+  end $ mainWindow gui
 
 
 mainMenu :: MainGUI -> IO ()
@@ -189,6 +182,7 @@ createMainMenu windowC = do
   begin window
   backLayout    <- newLabel 0 0 (width windowC) (height windowC) Nothing
   mainframe <- groupNew (toRectangle (0,0,width windowC, height windowC)) Nothing
+
   let mainWindow = MG
                   {
                     windCnf = windowC,
@@ -204,22 +198,25 @@ createMainMenu windowC = do
 
   begin mainframe
   settingButton <- newButton (width windowC-20) 0 20 20 Nothing
-  simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4) bigButtonWidth bigButtonHeight Nothing
-  simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
-  hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 4 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing
+  simplePVPMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 6) bigButtonWidth bigButtonHeight Nothing
+  simplePVEMode <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 6 + bigButtonHeight + 5) bigButtonWidth bigButtonHeight Nothing
+  hardPVPMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 6 + 2 * bigButtonHeight + 10) bigButtonWidth bigButtonHeight Nothing
+  hardPVEMode   <- newButton ((width windowC - bigButtonWidth) `div` 2) (height windowC `div` 6 + 3 * bigButtonHeight + 15) bigButtonWidth bigButtonHeight Nothing
   end mainframe
   end window
 
   setImage simplePVPMode (Just (head imgs))
   setImage simplePVEMode (Just (imgs !! 1))
   setImage hardPVPMode   (Just (imgs !! 2))
-  setImage backLayout    (Just (imgs !! 3)) --Доработать задний фон
+  setImage hardPVEMode   (Just (imgs !! 3))
+  setImage backLayout    (Just (imgs !! 4)) --Доработать задний фон
 
   rgbColorWithRgb backGroundColor >>= setColor window
 
-  setCallback simplePVPMode (startGameMode mainWindow runSimpleXOPVP)
-  setCallback simplePVEMode (startGameMode mainWindow runSimpleXOPVE)
-  setCallback hardPVPMode (startGameMode mainWindow runHardXOPVP)
+  setCallback simplePVPMode (\_ -> runSimpleMode mainWindow "Simple PvP" simpleCellPVP)
+  setCallback simplePVEMode (\_ -> runSimpleMode mainWindow "Simple PvE" simpleCellPVE)
+  setCallback hardPVPMode   (\_ -> runHardMode   mainWindow "Hard PvP"   hardCellPVP)
+  setCallback hardPVEMode   (\_ -> runHardMode   mainWindow "Hard PvE"   hardCellPVE)
   setCallback settingButton (\_ -> settingsScreen mainWindow cellsToWin cellsCount createMainMenu)
 
   mainMenu mainWindow

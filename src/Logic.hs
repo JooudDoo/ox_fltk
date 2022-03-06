@@ -29,3 +29,7 @@ callForBotRandom field player = do
     return (abs (fst turn) `mod` length (head field), abs (snd turn) `mod` length (head field))
     where
         takeCell field r c = field !!( abs r `mod` length (head field) ) !! ( abs c `mod` length (head field) )
+
+
+callForHardBotRandom :: [HardPlayers] -> Player -> IO (FieldNumber, Int, Int)
+callForHardBotRandom field player = undefined
