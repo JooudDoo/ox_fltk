@@ -250,14 +250,6 @@ readCells cellList inRow = do
   mapM_ (getLabel >=> (\d -> modifyIORef fieldIO (++ [pl d]))) cellList
   readIORef fieldIO >>= \s -> return (refactorList s inRow)
 
-checkDraw :: [[Player]] -> GameState
-checkDraw field
-  | cntNaPs == 0 = Draw
-  | otherwise = Game
-  where
-    cntNaPs = length $ filter (==NaP) $ mergeList field
-
-
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
@@ -324,12 +316,26 @@ cleanHardField fieldIO = do
      activate s))
 
 
+checkDrawSimple :: [[Player]] -> GameState
+checkDrawSimple field
+  | null cntNaPs = Draw
+  | otherwise = Game
+  where
+    cntNaPs = filter (==NaP) $ mergeList field
+
+
+checkDrawHard :: [HardField] -> GameState
+checkDrawHard field
+  | not (any (\s -> state s /= Game) field) = Draw
+  | otherwise  = Game
+
+
 checkWinSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
 checkWinSimple player block row btnLst = do
    field <- readCells btnLst row
    playerIsWin <- checkWinPlCustom field row block player
    when debugging $ print field
-   return $ gState playerIsWin (checkDraw field)
+   return $ gState playerIsWin (checkDrawSimple field)
 
 
 checkWinHard :: Player -> IORef [HardField] -> IO GameState
@@ -344,14 +350,13 @@ checkWinHard playerCur fieldIO = do
          modifyIORef fieldBigIO (++[NaP])
    fieldBig <- readIORef fieldBigIO >>= \s -> return $ refactorList s 3
    playerIsWin <- checkWinPlCustom fieldBig 3 3 playerCur
-   when debugging $ print $ "BIG" ++ show fieldBig
-   return $ gState playerIsWin (checkDraw fieldBig)
+   when debugging $ print $ "BIG" ++ show (gState playerIsWin (checkDrawHard field))
+   return $ gState Game (checkDrawHard field)
 
 
 --Больше тестов возможны ошибки
 checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> IO GameState
 checkWinPlCustom pole inRowIn block player = do
-  print block
   iSwin <- newIORef False
   forM_[0..inRowIn-1] (check 1 0 0 >=> (\ s -> modifyIORef iSwin (|| s)))
   forM_[0..inRowIn-1] $ \i -> check 0 i 1 0 >>= (\s -> modifyIORef iSwin (|| s))

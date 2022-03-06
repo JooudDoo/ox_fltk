@@ -49,7 +49,7 @@ gameCellPVE gui fieldIO pla b' = do
     checkWinSimple currentPlayer block inRow btnLst >>=
       \case
         Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
-        Draw -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Draw
+        Draw -> endGameScreen gui (Just fieldIO) Nothing NaP Draw
         Game -> do
           botPlayer <- readIORef pla
           setLabel (labelInfo fieldIO) (pack $ plT (rPl botPlayer) ++ " human move") --Переделать это окно на красиво богато
@@ -58,7 +58,7 @@ gameCellPVE gui fieldIO pla b' = do
           checkWinSimple botPlayer block inRow btnLst >>=
             \case
               Win -> endGameScreen gui (Just fieldIO) Nothing botPlayer Win
-              Draw -> endGameScreen gui (Just fieldIO) Nothing botPlayer Draw
+              Draw -> endGameScreen gui (Just fieldIO) Nothing NaP Draw
               Game -> return ()
 
 
@@ -74,7 +74,7 @@ gameCellPVP gui fieldIO pla b' = do
     checkWinSimple currentPlayer block (rowCnt fieldIO) btnLst  >>=
       \case
         Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
-        Draw -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Draw
+        Draw -> endGameScreen gui (Just fieldIO) Nothing NaP Draw
         Game -> return ()
 
 
@@ -103,7 +103,7 @@ hardCellPVP gui allFieldIO btnData pl b' = do
           gameState <- checkWinHard currentPlayer allFieldIO
           case gameState of
             Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
-            Draw -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
+            Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
             Game -> return ()
    where
      checkTypeOfGame x y
