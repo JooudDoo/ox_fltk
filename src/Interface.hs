@@ -54,7 +54,7 @@ simpleCellPVE gui fieldIO pla b' = do
         Game -> do
           botPlayer <- readIORef pla
           setLabel (labelInfo fieldIO) (pack $ plT (rPl botPlayer) ++ " human move") --Переделать это окно на красиво богато
-          (btx, bty) <- readCells btnLst inRow >>= \f -> callForBotRandom f botPlayer
+          (btx, bty) <- readCells btnLst inRow >>= \f -> callForBot f botPlayer 
           newButtonState (btnLst !! (btx * inRow + bty)) pla
           checkWinRAWSimple botPlayer block inRow btnLst >>=
             \case
@@ -165,11 +165,11 @@ mainMenu gui = do
   return ()
 
 
-createMainMenu :: WindowConfig -> IO ()
-createMainMenu windowC = do
+createMainMenu :: WindowConfig -> Int -> IO ()
+createMainMenu windowC cellCountIN = do
   imgs <- readAssetsImages images
-  cellsToWin <- newIORef 3
-  cellsCount <- newIORef 3
+  cellsToWin <- newIORef (cellToWinCoef !! cellCountIN)
+  cellsCount <- newIORef cellCountIN
   --MAINMENUCONTS не трогать
   let bigButtonWidth = 300
   let bigButtonHeight = 100
