@@ -117,12 +117,13 @@ newLabel xPos yPos xSize ySize = boxNew
             (Rectangle (Position (X xPos) (Y yPos)) (Size (Width xSize) (Height ySize)))
 
 
-newButtonState :: Ref Button -> IORef Player -> IO ()
+newButtonState :: Ref Button -> Player -> IO ()
 newButtonState b' pl = do
-  currentPlayer <- readIORef pl
+  let currentPlayer = pl
+  --currentPlayer <- readIORef pl
   setLabel b' (pack $ plT currentPlayer)
   switchColorPlayer currentPlayer b'
-  writeIORef pl (rPl currentPlayer)
+  --writeIORef pl (rPl currentPlayer)
 
 
 switchColorPlayer :: Player -> Ref Button -> IO ()
@@ -294,8 +295,6 @@ readCells cellList inRow = do
 endGameScreen :: MainGUI -> Maybe SimpleField -> Maybe (IORef [HardField]) -> Player -> GameState -> IO ()
 endGameScreen gui simplField hrdField player gstate = do
   when interfaceDebugging $ print ("State: " ++ gSt gstate ++ " " ++ plT player)
-  when (isJust simplField) (cleanAllCells (fieldBtns (fromJust simplField)))
-  forM_ hrdField cleanHardField
   overlayScreen gui player gstate
   where
       overlayScreen :: MainGUI -> Player -> GameState -> IO ()
@@ -307,8 +306,11 @@ endGameScreen gui simplField hrdField player gstate = do
         setModal win
         clearBorder win
         begin win
+        let playerCur | player == Cross = "Human"
+                      | player == Zero = "Bot?"
+                      | otherwise  = "?????"
         let text   | gstate == Draw = "DRAW"
-                   | otherwise = "Winner is " ++ plT player
+                   | otherwise = "Winner is " ++ playerCur ++ " (" ++plT player ++ ")"
         infoLabel  <- newLabel ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
                                 10
                                 (width (windCnf gui) `div` 3)
@@ -321,12 +323,36 @@ endGameScreen gui simplField hrdField player gstate = do
                     (width (windCnf gui) `div` 3)
                     (height (windCnf gui) `div` 16)
                     (Just "Повтор?")
-
-        setCallback pushBtn (btnFunc win)
+        hideButton  <- boxCustom
+                       (Rectangle (Position (X 0) (Y 0)) (Size (Width 20) (Height 20)))
+                       (Just "O")
+                       Nothing
+                       (Just (defaultCustomWidgetFuncs {
+                         handleCustom = Just $ windownHandel win
+                       }))
+        rgbColorWithRgb backGroundColor >>= setColor hideButton
+        setCallback pushBtn    (btnFunc win)
+        --setCallback hideButton (hideButtonFnc win)
         showWidget win
         end win
+      windownHandel :: Ref OverlayWindow -> Ref Box -> Event -> IO (Either UnknownEvent ())
+      windownHandel win x e =
+        case e of
+          Release -> do
+            resize win (toRectangle (0,0 ,width (windCnf gui) `div` 2, height (windCnf gui) `div` 4))
+            return (Right ())
+          Push -> do
+            resize win (toRectangle (0,0,0,0))
+            return (Right ())
+          _ -> return (Left UnknownEvent)
+      hideButtonFnc :: Ref OverlayWindow -> Ref Button  -> IO ()
+      hideButtonFnc win b' =
+        hide win
       btnFunc :: Ref OverlayWindow -> Ref Button -> IO ()
-      btnFunc win b' = destroy win
+      btnFunc win b' = do
+        when (isJust simplField) (cleanAllCells (fieldBtns (fromJust simplField)))
+        forM_ hrdField cleanHardField
+        destroy win
       winFunc :: Ref OverlayWindow -> IO ()
       winFunc win = destroy win
 
@@ -368,7 +394,7 @@ checkDrawHard field
 
 
 checkWinRAWSimple :: Player -> Int -> Int -> [Ref Button] -> IO GameState
-checkWinRAWSimple player block row btnLst = do
+checkWinRAWSimple player block row btnLst =
   readCells btnLst row >>= \s -> return $ checkWinSimple player block row s
 
 
@@ -476,7 +502,7 @@ createGameCells frame gui lb func = do
  mapM_ (\s -> setCallback s (func gui (SF {fieldBtns = lstButtons,labelInfo = lb, group = frame, rowCnt = inRow}) player)) lstButtons
  return lstButtons
  where
-   buttonSize r = ((windowHeight -200) `div` 3) *2 `div` r
+   buttonSize r = (windowHeight -200) `div` 3 *2 `div` r
    windowWidth = width $ windCnf gui
    windowHeight = height $ windCnf gui
 
@@ -510,7 +536,7 @@ createHardCellsField gui field = do
       modifyIORef lstButtonsIO (++[b'])
   readIORef lstButtonsIO
   where
-    buttonSize = ((heightW -151) `div` 3) *2 `div` 9
+    buttonSize = (heightW -151) `div` 3 *2 `div` 9
     widthW = width $ windCnf gui
     heightW = height $ windCnf gui
     padX i = winPadX + (field-1)`mod`3 * 3 * buttonSize + buttonSize * i + 10 * ((field-1) `mod` 3)

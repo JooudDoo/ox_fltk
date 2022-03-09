@@ -46,16 +46,16 @@ simpleCellPVE gui fieldIO pla b' = do
     currentPlayer <- readIORef pla
     block <- readIORef $ cellToWin $ cllsCnf gui
     setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " bot move") --Переделать это окно на красиво богато
-    newButtonState b' pla
+    newButtonState b' currentPlayer
     checkWinRAWSimple currentPlayer block inRow btnLst >>=
       \case
         Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
         Draw -> endGameScreen gui (Just fieldIO) Nothing NaP Draw
         Game -> do
-          botPlayer <- readIORef pla
+          let botPlayer = rPl currentPlayer
           setLabel (labelInfo fieldIO) (pack $ plT (rPl botPlayer) ++ " human move") --Переделать это окно на красиво богато
           (btx, bty) <- readCells btnLst inRow >>= \f -> callForBot f botPlayer
-          newButtonState (btnLst !! (btx * inRow + bty)) pla
+          newButtonState (btnLst !! (btx * inRow + bty)) botPlayer
           checkWinRAWSimple botPlayer block inRow btnLst >>=
             \case
               Win -> endGameScreen gui (Just fieldIO) Nothing botPlayer Win
@@ -71,7 +71,8 @@ simpleCellPVP gui fieldIO pla b' = do
     block <- readIORef $ cellToWin $ cllsCnf gui
     setLabel (labelInfo fieldIO) (pack $ plT (rPl currentPlayer) ++ " move") --Переделать это окно на красиво богато
     let btnLst = fieldBtns fieldIO
-    newButtonState b' pla
+    newButtonState b' currentPlayer
+    writeIORef pla (rPl currentPlayer)
     checkWinRAWSimple currentPlayer block (rowCnt fieldIO) btnLst  >>=
       \case
         Win -> endGameScreen gui (Just fieldIO) Nothing currentPlayer Win
@@ -85,7 +86,7 @@ hardCellPVE gui allFieldIO btnData pl b' = do
   when(stateB == "") $ do
     currentPlayer <- readIORef pl
     let currentField = fieldN btnData
-    newButtonState b' pl
+    newButtonState b' currentPlayer
     allField <- readIORef allFieldIO
     currentSmallFieldState <- checkWinRAWSimple currentPlayer 3 3 (field $ allField !! currentField)
     switchHardFieldsState allField btnData currentSmallFieldState
@@ -96,7 +97,7 @@ hardCellPVE gui allFieldIO btnData pl b' = do
         Game -> do --Добавить проверку доступности поля 
          let botPlayer = rPl currentPlayer
          (fieldB, xB, yB)  <- callForHardBotRandom (refactorHardField allField) botPlayer
-         newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) pl
+         newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) botPlayer
          currentSmallFieldState <- checkWinRAWSimple botPlayer 3 3 (field $ allField !! fieldB)
          switchHardFieldsState allField (BD{fieldN = fieldB, btnN =xB * 3 + yB}) currentSmallFieldState
          updateHardFieldData allFieldIO allField botPlayer fieldB currentSmallFieldState >>=
@@ -112,7 +113,8 @@ hardCellPVP gui allFieldIO btnData pl b' = do
   when(stateB == "") $ do
     currentPlayer <- readIORef pl
     let currentField = fieldN btnData
-    newButtonState b' pl
+    newButtonState b' currentPlayer
+    writeIORef pl (rPl currentPlayer)
     allField <- readIORef allFieldIO
     currentSmallFieldState <- checkWinRAWSimple currentPlayer 3 3 (field $ allField !! currentField)
 
