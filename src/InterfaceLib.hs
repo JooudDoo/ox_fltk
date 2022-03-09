@@ -141,7 +141,7 @@ changeButtonBlockColor btns pl = mapM_ helper btns
       showWidget b'
 
 
-settingsScreen :: MainGUI -> IORef Int -> IORef Int -> (WindowConfig -> IO()) -> IO ()
+settingsScreen :: MainGUI -> IORef Int -> IORef Int -> (WindowConfig -> Int -> IO()) -> IO ()
 settingsScreen gui cellsToWin cellsCount createWin = do
      let winWidth  = width (windCnf gui) `div` 2
      let winHeight = height (windCnf gui) `div` 4 *3
@@ -203,21 +203,22 @@ settingsScreen gui cellsToWin cellsCount createWin = do
       applySettings sliderX sliderY fullB win _ = do
         destroy win
         destroy (mainWindow gui)
+        cellsWinCnt <-readIORef (cntInRow $ cllsCnf gui)
         fullS <- getValue fullB
         if fullS then do
           x1 <- FL.x
           y1 <- FL.y
           newX <- FL.w
           newY <- FL.h
-          createWin (WC {width=newX+x1, height=newY+y1, fullscreen = fullS})
+          createWin (WC {width=newX+x1, height=newY+y1, fullscreen = fullS}) cellsWinCnt
         else
           if isNothing sliderX
             then
-              createWin (WC {width=800, height=600, fullscreen = False})
+              createWin (WC {width=800, height=600, fullscreen = False}) cellsWinCnt
             else do
               x <- getValue (fromJust sliderX)
               y <- getValue (fromJust sliderY)
-              createWin (WC {width=floor x, height=floor y, fullscreen = False})
+              createWin (WC {width=floor x, height=floor y, fullscreen = False})  cellsWinCnt
         return ()
       destroyApp :: Ref OverlayWindow -> Ref Button -> IO ()
       destroyApp winX _ = do

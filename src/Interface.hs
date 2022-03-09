@@ -165,11 +165,11 @@ mainMenu gui = do
   return ()
 
 
-createMainMenu :: WindowConfig -> IO ()
-createMainMenu windowC = do
+createMainMenu :: WindowConfig -> Int -> IO ()
+createMainMenu windowC cellCountIN = do
   imgs <- readAssetsImages images
-  cellsToWin <- newIORef 3
-  cellsCount <- newIORef 3
+  cellsToWin <- newIORef (cellToWinCoef !! cellCountIN)
+  cellsCount <- newIORef cellCountIN
   --MAINMENUCONTS не трогать
   let bigButtonWidth = 300
   let bigButtonHeight = 100

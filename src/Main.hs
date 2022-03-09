@@ -12,4 +12,4 @@ windowConfiguration =
     }
 
 main :: IO ()
-main = createMainMenu windowConfiguration
+main = createMainMenu windowConfiguration 3
