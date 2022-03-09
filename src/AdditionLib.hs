@@ -76,9 +76,6 @@ changeInList lst elem ind = take ind lst ++ [elem] ++ drop (ind+1) lst
 changeInField :: [[a]] -> a -> (Int, Int) -> [[a]]
 changeInField field elem (i, j) = refactorList (changeInList (mergeList field) elem (j + i * length field)) (length field)
 
---changeInField :: [[a]] -> a -> (Int, Int) -> [[a]]
---changeInField lst elem (indx, indy) = changeInList lst (changeInList (lst !! indx) elem indy) indx
-
 takeCell :: [[Player]] -> Int -> Int -> Player
 takeCell field r c = field !!( abs r `mod` length (head field) ) !! ( abs c `mod` length (head field) )
 
