@@ -287,6 +287,15 @@ readCells cellList inRow = do
   readIORef fieldIO >>= \s -> return (refactorList s inRow)
 
 
+mainMenu :: MainGUI -> IO ()
+mainMenu gui = do
+  setLabel (mainWindow gui) "Main Menu"
+  begin $ mainWindow gui
+  showWidget $ packs gui
+  showWidget $ mainWindow gui
+  return ()
+
+
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
@@ -316,13 +325,23 @@ endGameScreen gui simplField hrdField player gstate = do
                                 (width (windCnf gui) `div` 3)
                                 (height (windCnf gui) `div` 10)
                                 (Just $ pack text) --Переделать это окно на красиво богато
+        let btnCountDown = 2
+        let buttonSizeDown = (width (windCnf gui) `div` 2) `div` btnCountDown -10
+        let padButtonsDown = ((width (windCnf gui) `div` 2) - buttonSizeDown*btnCountDown) `div` 2
+        exitButton <- newButton
+                      padButtonsDown
+                      (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
+                      buttonSizeDown
+                      (height (windCnf gui) `div` 16)
+                      (Just "Main menu")
 
         pushBtn <- newButton
-                    ((width (windCnf gui) `div` 2 - width (windCnf gui) `div` 3) `div` 2)
+                    (padButtonsDown + buttonSizeDown + 5)
                     (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
-                    (width (windCnf gui) `div` 3)
+                    buttonSizeDown
                     (height (windCnf gui) `div` 16)
-                    (Just "Повтор?")
+                    (Just "Again")
+        
         hideButton  <- boxCustom
                        (Rectangle (Position (X 0) (Y 0)) (Size (Width 20) (Height 20)))
                        (Just "O")
@@ -330,11 +349,17 @@ endGameScreen gui simplField hrdField player gstate = do
                        (Just (defaultCustomWidgetFuncs {
                          handleCustom = Just $ windownHandel win
                        }))
-        rgbColorWithRgb backGroundColor >>= setColor hideButton
-        setCallback pushBtn    (btnFunc win)
+
+        setCallback exitButton (\_ -> exitButtonFunc gui win)
+        setCallback pushBtn    (\_ -> btnFunc win)
         --setCallback hideButton (hideButtonFnc win)
         showWidget win
         end win
+      exitButtonFunc :: MainGUI -> Ref OverlayWindow -> IO ()
+      exitButtonFunc gui win = do
+        btnFunc win
+        hide (group $ fromJust simplField) --Оптимизировать удаление детей
+        mainMenu gui
       windownHandel :: Ref OverlayWindow -> Ref Box -> Event -> IO (Either UnknownEvent ())
       windownHandel win x e =
         case e of
@@ -348,8 +373,8 @@ endGameScreen gui simplField hrdField player gstate = do
       hideButtonFnc :: Ref OverlayWindow -> Ref Button  -> IO ()
       hideButtonFnc win b' =
         hide win
-      btnFunc :: Ref OverlayWindow -> Ref Button -> IO ()
-      btnFunc win b' = do
+      btnFunc :: Ref OverlayWindow -> IO ()
+      btnFunc win = do
         when (isJust simplField) (cleanAllCells (fieldBtns (fromJust simplField)))
         forM_ hrdField cleanHardField
         destroy win

@@ -32,11 +32,11 @@ exitButton gui frame = do
   where
     exitButtonFunc :: MainGUI -> Ref Group -> Ref Button -> IO ()
     exitButtonFunc gui frame b' = do
-      hide frame
+      hide frame --Оптимизировать удаление детей
       mainMenu gui
 
 
---Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво) | Сделать смену порядка возможной
+--Исправить костыль с лишним кодом | Смена порядка игроков (Работает криво (Больше не работает)) | Сделать смену порядка возможной
 simpleCellPVE :: MainGUI -> SimpleField -> IORef Player -> Ref Button -> IO ()
 simpleCellPVE gui fieldIO pla b' = do
   state <- getLabel b'
@@ -156,15 +156,6 @@ runSimpleMode gui windowName gameMode = do
 
   end mainframe
   end $ mainWindow gui
-
-
-mainMenu :: MainGUI -> IO ()
-mainMenu gui = do
-  setLabel (mainWindow gui) "Main Menu"
-  begin $ mainWindow gui
-  showWidget $ packs gui
-  showWidget $ mainWindow gui
-  return ()
 
 
 createMainMenu :: WindowConfig -> Int -> IO ()
