@@ -44,14 +44,16 @@ data HardField =
     {
       field ::[Ref Button],
       state :: GameState,
-      player :: Player
+      player :: Player,
+      isActiveField :: Bool
     }
 data HardPlayers =
     HP
     {
       fieldP ::[[Player]],
       stateP :: GameState,
-      playerP :: Player
+      playerP :: Player,
+      isActiveFieldP :: Bool
     }
 data SimpleField =
     SF
@@ -247,13 +249,24 @@ settingsScreen gui cellsToWin cellsCount createWin = do
       updateWid widg = hide widg >> showWidget widg
 
 
-switchHardFieldsState :: [HardField] -> ButtonData -> GameState -> IO ()
-switchHardFieldsState allField btnD gstate
-    | state (allField !! currentBtn) /= Game || gstate /= Game && currentBtn == currentField =
+switchHardFieldsState :: [HardField] -> IORef [HardField] -> ButtonData -> GameState -> IO ()
+switchHardFieldsState allField allFieldIO btnD gstate
+    | state (allField !! currentBtn) /= Game || gstate /= Game && currentBtn == currentField = do
                   mapM_ (activateField . field) allField
+                  allFieldRead <- readIORef allFieldIO
+                  writeIORef allFieldIO ([] :: [HardField])
+                  forM_ [0..8] $ \i -> do
+                    modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
     | otherwise = do
                   mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
                   activateField (field $ allField !! currentBtn)
+                  allFieldRead <- readIORef allFieldIO
+                  writeIORef allFieldIO ([] :: [HardField])
+                  forM_ [0..8] $ \i -> do
+                    if i /= currentBtn
+                      then modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = False}])
+                      else modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
+
     where
       currentField = fieldN btnD
       currentBtn = btnN btnD
@@ -262,7 +275,8 @@ switchHardFieldsState allField btnD gstate
 updateHardFieldData :: IORef [HardField] -> [HardField] -> Player -> FieldNumber -> GameState -> IO GameState
 updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState
   | currentSmallFieldState /= Game && state (allField !! currentField) == Game = do
-      writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer}) currentField)
+      fieldData <- readIORef allFieldIO
+      writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer, isActiveField = isActiveField $ fieldData !! currentField}) currentField)
       changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame currentSmallFieldState currentPlayer)
       checkWinRAWHard currentPlayer allFieldIO
   | otherwise = return Game
@@ -341,7 +355,7 @@ endGameScreen gui simplField hrdField player gstate = do
                     buttonSizeDown
                     (height (windCnf gui) `div` 16)
                     (Just "Again")
-        
+
         hideButton  <- boxCustom
                        (Rectangle (Position (X 0) (Y 0)) (Size (Width 20) (Height 20)))
                        (Just "O")
@@ -394,7 +408,7 @@ cleanHardField fieldIO = do
   writeIORef fieldIO ([] :: [HardField])
   forM_ [0..8] $ \i -> do
     mapM_ helper (field (fields !! i))
-    modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP}])
+    modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP, isActiveField = False}])
   where
     helper :: Ref Button -> IO ()
     helper s = setLabel s "" >>
@@ -404,7 +418,7 @@ cleanHardField fieldIO = do
 
 
 refactorHardField :: [HardField] -> [HardPlayers]
-refactorHardField = map (\s -> HP {fieldP = unsafePerformIO (readCells (field s) 3), stateP = state s,playerP = player s})
+refactorHardField = map (\s -> HP {fieldP = unsafePerformIO (readCells (field s) 3), stateP = state s,playerP = player s, isActiveFieldP = isActiveField s})
 
 checkDrawSimple :: [[Player]] -> GameState
 checkDrawSimple field
@@ -547,7 +561,7 @@ createHardCells gui func = do
 
 writeHardField :: [[Ref Button]] -> [HardField] -> [HardField]
 writeHardField btns res
-  | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP}])
+  | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP, isActiveField = True}])
   | otherwise = res
 
 
