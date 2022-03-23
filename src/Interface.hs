@@ -96,6 +96,7 @@ hardCellPVE gui allFieldIO btnData pl b' = do
         Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
         Game -> do --Добавить проверку доступности поля 
          let botPlayer = rPl currentPlayer
+         allField <- readIORef allFieldIO
          (fieldB, xB, yB)  <- callForHardBotRandom (refactorHardField allField) botPlayer
          newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) botPlayer
          currentSmallFieldState <- checkWinRAWSimple botPlayer 3 3 (field $ allField !! fieldB)

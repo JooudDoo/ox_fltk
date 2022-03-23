@@ -255,7 +255,7 @@ switchHardFieldsState allField allFieldIO btnD gstate
                   mapM_ (activateField . field) allField
                   allFieldRead <- readIORef allFieldIO
                   writeIORef allFieldIO ([] :: [HardField])
-                  forM_ [0..8] $ \i -> do
+                  forM_ [0..8] $ \i ->
                     modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
     | otherwise = do
                   mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
@@ -340,8 +340,8 @@ endGameScreen gui simplField hrdField player gstate = do
                                 (height (windCnf gui) `div` 10)
                                 (Just $ pack text) --Переделать это окно на красиво богато
         let btnCountDown = 2
-        let buttonSizeDown = (width (windCnf gui) `div` 2) `div` btnCountDown -10
-        let padButtonsDown = ((width (windCnf gui) `div` 2) - buttonSizeDown*btnCountDown) `div` 2
+        let buttonSizeDown = width (windCnf gui) `div` 2 `div` btnCountDown -10
+        let padButtonsDown = (width (windCnf gui) `div` 2 - buttonSizeDown*btnCountDown) `div` 2
         exitButton <- newButton
                       padButtonsDown
                       (height (windCnf gui) `div` 4 - height (windCnf gui) `div` 16)
@@ -440,14 +440,14 @@ checkWinRAWSimple player block row btnLst =
 checkWinRAWHard :: Player -> IORef [HardField] -> IO GameState
 checkWinRAWHard playerCur fieldIO = do
    field <- readIORef fieldIO
-   fieldBigIO <- newIORef ([] :: [Player])
-   forM_ [0..length field -1] $ \i ->
-     if state (field !! i) == Win
-       then
-         when interfaceDebugging $ print (show i ++ "Win" ++ (plT $ player (field !! i)))--modifyIORef fieldBigIO (++[player (field !! i)])
-        else
-         when interfaceDebugging $ print (show i ++ "lose" ++ (plT $ player (field !! i)))--modifyIORef fieldBigIO (++[NaP])
-   fieldNIO <-readIORef fieldBigIO
+  --  fieldBigIO <- newIORef ([] :: [Player])
+  --  forM_ [0..length field -1] $ \i ->
+  --    if state (field !! i) == Win
+  --      then
+  --        when interfaceDebugging $ print (show i ++ "Win" ++ plT (player (field !! i)))--modifyIORef fieldBigIO (++[player (field !! i)])
+  --       else
+  --        when interfaceDebugging $ print (show i ++ "lose" ++ plT (player (field !! i)))--modifyIORef fieldBigIO (++[NaP])
+  --  fieldNIO <-readIORef fieldBigIO
    return $ checkWinHard playerCur (refactorHardField field)
 
 
