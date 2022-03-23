@@ -444,9 +444,9 @@ checkWinRAWHard playerCur fieldIO = do
    forM_ [0..length field -1] $ \i ->
      if state (field !! i) == Win
        then
-         modifyIORef fieldBigIO (++[player (field !! i)])
+         when interfaceDebugging $ print (show i ++ "Win" ++ (plT $ player (field !! i)))--modifyIORef fieldBigIO (++[player (field !! i)])
         else
-         modifyIORef fieldBigIO (++[NaP])
+         when interfaceDebugging $ print (show i ++ "lose" ++ (plT $ player (field !! i)))--modifyIORef fieldBigIO (++[NaP])
    fieldNIO <-readIORef fieldBigIO
    return $ checkWinHard playerCur (refactorHardField field)
 
@@ -462,7 +462,7 @@ checkWinHard playerCur fieldDATA = do
    let fieldDATAPlayers = refactorList (map playerP fieldDATA) 3
    let fieldDATAStates = map  stateP fieldDATA
    let playerIsWin = checkWinPlCustom fieldDATAPlayers 3 3 playerCur
-   gState Game (checkDrawHard fieldDATAStates)
+   gState playerIsWin (checkDrawHard fieldDATAStates)
 
 
 checkWinPlCustom :: (Eq a) => [[a]] -> Int -> Int -> a -> GameState
