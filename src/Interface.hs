@@ -89,13 +89,13 @@ hardCellPVE gui allFieldIO btnData pl b' = do
     newButtonState b' currentPlayer
     allField <- readIORef allFieldIO
     currentSmallFieldState <- checkWinRAWSimple currentPlayer 3 3 (field $ allField !! currentField)
-    switchHardFieldsState allField allFieldIO btnData currentSmallFieldState
     updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState >>=
       \case
         Win -> endGameScreen gui Nothing (Just allFieldIO) currentPlayer Win
         Draw -> endGameScreen gui Nothing (Just allFieldIO) NaP Draw
         Game -> do --Добавить проверку доступности поля 
          let botPlayer = rPl currentPlayer
+         switchHardFieldsState allField allFieldIO btnData currentSmallFieldState
          allField <- readIORef allFieldIO
          (fieldB, xB, yB)  <- callForHardBotRandom (refactorHardField allField) botPlayer
          newButtonState (field (allField !! fieldB) !! (xB * 3 + yB)) botPlayer

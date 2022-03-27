@@ -54,7 +54,7 @@ data HardPlayers =
       stateP :: GameState,
       playerP :: Player,
       isActiveFieldP :: Bool
-    }
+    } deriving Show
 data SimpleField =
     SF
     {
@@ -256,7 +256,7 @@ switchHardFieldsState allField allFieldIO btnD gstate
                   allFieldRead <- readIORef allFieldIO
                   writeIORef allFieldIO ([] :: [HardField])
                   forM_ [0..8] $ \i ->
-                    modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
+                    modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
     | otherwise = do
                   mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
                   activateField (field $ allField !! currentBtn)
@@ -264,8 +264,8 @@ switchHardFieldsState allField allFieldIO btnD gstate
                   writeIORef allFieldIO ([] :: [HardField])
                   forM_ [0..8] $ \i -> do
                     if i /= currentBtn
-                      then modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = False}])
-                      else modifyIORef allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
+                      then modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = False}])
+                      else modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
 
     where
       currentField = fieldN btnD
