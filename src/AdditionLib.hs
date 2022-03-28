@@ -12,10 +12,10 @@ import Control.Exception
 import Data.IORef
 
 debugging :: Bool
-debugging = True
+debugging = False
 
 interfaceDebugging :: Bool
-interfaceDebugging = True
+interfaceDebugging = False
 
 --Все дополнительные небольшие функции лежат тут
 

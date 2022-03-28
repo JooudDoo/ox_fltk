@@ -45,7 +45,8 @@ data HardField =
       field ::[Ref Button],
       state :: GameState,
       player :: Player,
-      isActiveField :: Bool
+      isActiveField :: Bool,
+      gameFrame :: Ref Group      
     }
 data HardPlayers =
     HP
@@ -54,7 +55,7 @@ data HardPlayers =
       stateP :: GameState,
       playerP :: Player,
       isActiveFieldP :: Bool
-    } deriving Show
+    } --deriving Show
 data SimpleField =
     SF
     {
@@ -256,7 +257,7 @@ switchHardFieldsState allField allFieldIO btnD gstate
                   allFieldRead <- readIORef allFieldIO
                   writeIORef allFieldIO ([] :: [HardField])
                   forM_ [0..8] $ \i ->
-                    modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
+                    modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True,  gameFrame = gameFrame $ head allFieldRead}])
     | otherwise = do
                   mapM_ (deactivateField .field. fst) (filter (\(_,s) -> s /= currentBtn) (zip allField [0..]))
                   activateField (field $ allField !! currentBtn)
@@ -264,8 +265,8 @@ switchHardFieldsState allField allFieldIO btnD gstate
                   writeIORef allFieldIO ([] :: [HardField])
                   forM_ [0..8] $ \i -> do
                     if i /= currentBtn
-                      then modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = False}])
-                      else modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True}])
+                      then modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = False, gameFrame = gameFrame $ head allFieldRead}])
+                      else modifyIORef' allFieldIO (++[HF{field = field (allFieldRead !! i), state = state (allFieldRead !! i), player = player (allFieldRead !! i), isActiveField = True,  gameFrame = gameFrame $ head allFieldRead}])
 
     where
       currentField = fieldN btnD
@@ -276,7 +277,7 @@ updateHardFieldData :: IORef [HardField] -> [HardField] -> Player -> FieldNumber
 updateHardFieldData allFieldIO allField currentPlayer currentField currentSmallFieldState
   | currentSmallFieldState /= Game && state (allField !! currentField) == Game = do
       fieldData <- readIORef allFieldIO
-      writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer, isActiveField = isActiveField $ fieldData !! currentField}) currentField)
+      writeIORef allFieldIO (changeInList allField (HF {field = field $ allField !! currentField, state = currentSmallFieldState, player = currentPlayer, isActiveField = isActiveField $ fieldData !! currentField, gameFrame = gameFrame $ head fieldData}) currentField)
       changeButtonBlockColor (field $ allField !! currentField) (checkTypeOfGame currentSmallFieldState currentPlayer)
       checkWinRAWHard currentPlayer allFieldIO
   | otherwise = return Game
@@ -313,7 +314,7 @@ mainMenu gui = do
 --TODO 
 --Отдельным блоком ✓
 --Возможность контролировать весь интерфейс ✓ 
---Красиво и нарядно (30%)
+--Красиво и нарядно (45%)
 --Обьединить блоки и сделать их универсальными ✓
 endGameScreen :: MainGUI -> Maybe SimpleField -> Maybe (IORef [HardField]) -> Player -> GameState -> IO ()
 endGameScreen gui simplField hrdField player gstate = do
@@ -366,13 +367,16 @@ endGameScreen gui simplField hrdField player gstate = do
 
         setCallback exitButton (\_ -> exitButtonFunc gui win)
         setCallback pushBtn    (\_ -> btnFunc win)
-        --setCallback hideButton (hideButtonFnc win)
         showWidget win
         end win
       exitButtonFunc :: MainGUI -> Ref OverlayWindow -> IO ()
       exitButtonFunc gui win = do
         btnFunc win
-        hide (group $ fromJust simplField) --Оптимизировать удаление детей
+        when (isJust simplField) $ hide (group $ fromJust simplField)--Оптимизировать удаление детей
+        when (isJust hrdField) $ do
+          hardFieldData <- readIORef (fromJust hrdField)
+          hide (gameFrame $ head hardFieldData )--Оптимизировать удаление детей
+          return ()
         mainMenu gui
       windownHandel :: Ref OverlayWindow -> Ref Box -> Event -> IO (Either UnknownEvent ())
       windownHandel win x e =
@@ -408,7 +412,7 @@ cleanHardField fieldIO = do
   writeIORef fieldIO ([] :: [HardField])
   forM_ [0..8] $ \i -> do
     mapM_ helper (field (fields !! i))
-    modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP, isActiveField = False}])
+    modifyIORef fieldIO (++[HF{field = field (fields !! i), state = Game, player = NaP, isActiveField = False, gameFrame = gameFrame $ head fields}])
   where
     helper :: Ref Button -> IO ()
     helper s = setLabel s "" >>
@@ -550,18 +554,21 @@ createHardCells :: MainGUI -> (MainGUI -> IORef [HardField] -> ButtonData -> IOR
 createHardCells gui func = do
   playerTurn <- newIORef (Cross :: Player)
   fieldX <- newIORef ([] :: [[Ref Button]])
+  gameFrameTrue <- groupNew (toRectangle (0,0,width $ windCnf gui, height $ windCnf gui)) Nothing
+  begin gameFrameTrue
   forM_ [1..9] $ \i -> do
     cache <- createHardCellsField gui i
     modifyIORef fieldX (++[cache])
+  end gameFrameTrue
   fl <- readIORef fieldX
-  field <- newIORef (writeHardField fl [] :: [HardField])
+  field <- newIORef (writeHardField fl [] gameFrameTrue :: [HardField])
   forM_ [0..8] $ \i ->
     updateHardCellsFunc field (fl !! i) func i playerTurn gui
 
 
-writeHardField :: [[Ref Button]] -> [HardField] -> [HardField]
-writeHardField btns res
-  | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP, isActiveField = True}])
+writeHardField :: [[Ref Button]] -> [HardField] -> Ref Group -> [HardField]
+writeHardField btns res gr
+  | not $ null btns = writeHardField (tail btns) (res ++ [HF {field = head btns, state = Game, player = NaP, isActiveField = True, gameFrame = gr}]) gr
   | otherwise = res
 
 
