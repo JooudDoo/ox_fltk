@@ -15,7 +15,7 @@ debugging :: Bool
 debugging = False
 
 interfaceDebugging :: Bool
-interfaceDebugging = False
+interfaceDebugging = True
 
 --Все дополнительные небольшие функции лежат тут
 
