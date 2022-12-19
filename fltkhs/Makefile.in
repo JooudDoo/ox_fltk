@@ -1,0 +1,20 @@
+EXECUTABLEDIR = executables
+LIBDIR = c-lib
+SRC = c-src
+SHARED_OBJECT_FILES = shared_object_files
+STATIC_OBJECT_FILES = static_object_files
+CONFIGURE_CACHE = autom4te.cache
+CONFIGURE_LOG = config.log
+CONFIGURE_STATUS = config.status
+DIRS = $(SRC)
+CLEANUP = $(EXECUTABLEDIR) $(LIBDIR) $(OBJECT_FILES) $(SHARED_OBJECT_FILES) $(STATIC_OBJECT_FILES) $(CONFIGURE_CACHE) $(CONFIGURE_LOG) $(CONFIGURE_STATUS) $(CONFIGURE_SCAN)
+.SILENT:
+.PHONY: src all clean
+src:
+	cd $(SRC); $(MAKE) all
+all: src
+clean:
+	for f in $(CLEANUP); do\
+	 	echo "=== removing $$f ===";\
+	 	  rm -rf $$f; \
+	done

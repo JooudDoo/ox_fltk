@@ -1,0 +1,6 @@
+resolver: nightly-2022-09-17
+packages:
+- '.'
+flags: {}
+extra-package-dbs: []
+allow-newer: true
